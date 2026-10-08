@@ -132,11 +132,44 @@
   }
 }
 
+/* Tabelas de relatório: listas zebradas. Linhas com fundo próprio (títulos, totais) prevalecem. */
+@layer components {
+  .report-table tbody tr:nth-child(even) {
+    background-color: color-mix(in oklch, var(--muted) 70%, transparent);
+  }
+}
+
 @media print {
   @page { size: A4; margin: 12mm; }
   .no-print { display: none !important; }
-  html, body { background: white !important; color: black !important; }
-  .print-area { box-shadow: none !important; border: none !important; padding: 0 !important; }
+  html, body { background: #fff !important; color: #000 !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  .print-area {
+    background: #fff !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    font-size: 9.5pt;
+  }
+  /* Todo o texto do relatório em preto, inclusive tons secundários e de destaque. */
+  .print-area, .print-area * {
+    color: #000 !important;
+    border-color: #000 !important;
+  }
+  .print-area a { text-decoration: none; }
+
+  .report-table thead { display: table-header-group; }
+  .report-table tfoot { display: table-row-group; }
+  .report-table tr { break-inside: avoid; }
+  .report-table tbody tr:nth-child(even) { background-color: #ececec !important; }
+  .report-table tbody tr:nth-child(odd) { background-color: #fff; }
+  /* Linhas de grupo/dia/total: cinza mais forte para separar visualmente. */
+  .print-area [class*="bg-muted"], .print-area [class*="bg-primary"],
+  .print-area .report-table tbody tr[class*="bg-muted"], .print-area .report-table tbody tr[class*="bg-primary"] {
+    background-color: #d4d4d4 !important;
+  }
+  .print-area [class*="border-border"] { border-color: #bdbdbd !important; }
 }
 
 .tiptap-content :where(h1) { font-size: 1.6rem; font-weight: 700; margin: .6em 0 .3em; }

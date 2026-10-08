@@ -40,7 +40,7 @@ export function ReportSheet({
 }
 
 export function ReportTable({ className, ...props }: React.ComponentProps<"table">) {
-  return <table className={cn("w-full border-collapse text-sm [&_td]:px-2 [&_td]:py-1 [&_th]:px-2 [&_th]:py-1.5", className)} {...props} />;
+  return <table className={cn("report-table w-full border-collapse text-sm [&_td]:px-2 [&_td]:py-1 [&_th]:px-2 [&_th]:py-1.5", className)} {...props} />;
 }
 
 export function Th({ className, ...props }: React.ComponentProps<"th">) {
