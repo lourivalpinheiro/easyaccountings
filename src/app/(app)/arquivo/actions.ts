@@ -4,7 +4,7 @@ import { and, eq, like, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
-import { accounts, budgetItems, budgets, explanatoryNotes, journalLines } from "@/db/schema";
+import { accounts, budgetItems, budgets, dreCategories, explanatoryNotes, journalLines } from "@/db/schema";
 import {
   centsToDecimal,
   groupOf,
@@ -43,6 +43,13 @@ export async function saveAccount(input: z.input<typeof accountSchema>) {
     const parent = parentOf(data.classification);
     if (parent && !chart.some((a) => a.classification === parent)) {
       throw new UserError(`Cadastre antes a conta sintética ${parent}.`);
+    }
+    if (data.dreCategoryId) {
+      const [category] = await db
+        .select({ id: dreCategories.id })
+        .from(dreCategories)
+        .where(and(eq(dreCategories.id, data.dreCategoryId), eq(dreCategories.companyId, companyId)));
+      if (!category) throw new UserError("Categoria de DRE inválida.");
     }
     const duplicate = chart.find((a) => a.classification === data.classification && a.id !== data.id);
     if (duplicate) throw new UserError(`A classificação ${data.classification} já é usada por "${duplicate.name}".`);
@@ -132,6 +139,13 @@ export async function saveNote(input: z.input<typeof noteSchema>) {
     if (!parsed.success) throw new UserError(parsed.error.issues[0].message);
     const { id, ...rest } = parsed.data;
     const data = { ...rest, content: sanitizeNoteHtml(rest.content) };
+    if (data.accountId) {
+      const [account] = await db
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(and(eq(accounts.id, data.accountId), eq(accounts.companyId, companyId)));
+      if (!account) throw new UserError("Conta contábil inválida.");
+    }
     let noteId = id;
     if (id) {
       await db

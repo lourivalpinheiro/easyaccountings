@@ -4,7 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
-  const next = searchParams.get("next")?.startsWith("/") ? searchParams.get("next")! : "/";
+  // Só caminhos internos: bloqueia "//outro-site" e "/\outro-site" (redirecionamento aberto).
+  const rawNext = searchParams.get("next") ?? "/";
+  const next = rawNext.startsWith("/") && rawNext[1] !== "/" && rawNext[1] !== "\\" ? rawNext : "/";
   const code = searchParams.get("code");
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;

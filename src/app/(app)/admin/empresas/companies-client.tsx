@@ -4,6 +4,7 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { ConfirmAction } from "@/components/confirm-button";
 import { Badge } from "@/components/ui/badge";
+import { TablePagination, usePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -45,6 +46,7 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
   const [document, setDocument] = useState("");
   const [pending, startTransition] = useTransition();
   const labels = PERSON_LABELS[personType];
+  const { rows: pageRows, pagination } = usePagination(companies);
 
   function open(company: Partial<Company>) {
     const type = company.personType ?? "PJ";
@@ -90,7 +92,7 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
                 </TableCell>
               </TableRow>
             )}
-            {companies.map((c) => (
+            {pageRows.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className="font-medium">{c.legalName}</TableCell>
                 <TableCell>
@@ -115,6 +117,7 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
             ))}
           </TableBody>
         </Table>
+<TablePagination {...pagination} />
       </CardContent>
 
       <Dialog open={editing !== null} onOpenChange={(o) => !o && setEditing(null)}>

@@ -3,6 +3,7 @@
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { ConfirmAction } from "@/components/confirm-button";
+import { TablePagination, usePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -17,6 +18,7 @@ type Row = { id: string; code: number; description: string };
 export function HistoryCodesClient({ rows }: { rows: Row[] }) {
   const [editing, setEditing] = useState<Partial<Row> | null>(null);
   const [pending, startTransition] = useTransition();
+  const { rows: pageRows, pagination } = usePagination(rows);
   const nextCode = rows.reduce((m, r) => Math.max(m, r.code), 0) + 1;
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -55,7 +57,7 @@ export function HistoryCodesClient({ rows }: { rows: Row[] }) {
                 </TableCell>
               </TableRow>
             )}
-            {rows.map((r) => (
+            {pageRows.map((r) => (
               <TableRow key={r.id}>
                 <TableCell className="tabular-nums">{r.code}</TableCell>
                 <TableCell>{r.description}</TableCell>
@@ -77,6 +79,7 @@ export function HistoryCodesClient({ rows }: { rows: Row[] }) {
             ))}
           </TableBody>
         </Table>
+<TablePagination {...pagination} />
       </CardContent>
       <Dialog open={editing !== null} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent>

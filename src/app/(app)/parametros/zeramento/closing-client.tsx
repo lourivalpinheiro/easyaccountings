@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { AccountPicker, type PickerAccount } from "@/components/account-picker";
 import { ConfirmAction } from "@/components/confirm-button";
 import { Badge } from "@/components/ui/badge";
+import { TablePagination, usePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,8 @@ export function ClosingClient({
   const [from, setFrom] = useState(period.from);
   const [to, setTo] = useState(period.to);
   const [pending, startTransition] = useTransition();
+  const previewPage = usePagination(preview);
+  const batchPage = usePagination(batches, 10);
   const result = -preview.reduce((s, r) => s + r.balance, 0);
 
   return (
@@ -107,7 +110,7 @@ export function ClosingClient({
                   </TableCell>
                 </TableRow>
               )}
-              {preview.map((r) => (
+              {previewPage.rows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="tabular-nums">{r.classification}</TableCell>
                   <TableCell>{r.name}</TableCell>
@@ -124,6 +127,7 @@ export function ClosingClient({
               </TableFooter>
             )}
           </Table>
+          <TablePagination {...previewPage.pagination} />
         </CardContent>
         <CardFooter className="justify-end">
           <ConfirmAction
@@ -164,7 +168,7 @@ export function ClosingClient({
                   </TableCell>
                 </TableRow>
               )}
-              {batches.map((b) => (
+              {batchPage.rows.map((b) => (
                 <TableRow key={b.id}>
                   <TableCell>
                     {formatDate(b.startDate)} a {formatDate(b.endDate)}
@@ -191,6 +195,7 @@ export function ClosingClient({
               ))}
             </TableBody>
           </Table>
+          <TablePagination {...batchPage.pagination} />
         </CardContent>
       </Card>
     </div>

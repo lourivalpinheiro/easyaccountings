@@ -7,6 +7,7 @@ import { AccountPicker, type PickerAccount } from "@/components/account-picker";
 import { ConfirmAction } from "@/components/confirm-button";
 import { MoneyInput } from "@/components/money-input";
 import { Badge } from "@/components/ui/badge";
+import { TablePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -125,11 +126,15 @@ function balanced(d: Draft): Draft {
 
 export function EntriesClient({
   period,
+  query,
+  paging,
   accounts,
   histories,
   entries,
 }: {
   period: { from: string; to: string };
+  query: string;
+  paging: { page: number; pageSize: number; total: number };
   accounts: PickerAccount[];
   histories: { code: number; description: string }[];
   entries: Entry[];
@@ -140,7 +145,7 @@ export function EntriesClient({
   const [draft, setDraft] = useState<Draft>(() => (entries[0] ? draftFromEntry(entries[0]) : blankDraft()));
   const [from, setFrom] = useState(period.from);
   const [to, setTo] = useState(period.to);
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useState(query);
   const [pending, startTransition] = useTransition();
 
   const selected = entries.find((e) => e.id === selectedId) ?? null;
@@ -204,12 +209,18 @@ export function EntriesClient({
     });
   }
 
-  const visible = filter.trim()
-    ? entries.filter(
-        (e) =>
-          e.description.toLowerCase().includes(filter.toLowerCase()) || String(e.number) === filter.trim(),
-      )
-    : entries;
+  const visible = entries;
+  const go = (changes: { pagina?: number; por?: number; de?: string; ate?: string; q?: string }) => {
+    const p = new URLSearchParams({
+      de: changes.de ?? period.from,
+      ate: changes.ate ?? period.to,
+      pagina: String(changes.pagina ?? paging.page),
+      por: String(changes.por ?? paging.pageSize),
+    });
+    const q = changes.q ?? query;
+    if (q) p.set("q", q);
+    router.push(`?${p.toString()}`);
+  };
 
   const multiDebit = draft.formula === "Nx1" || draft.formula === "NxN";
   const multiCredit = draft.formula === "1xN" || draft.formula === "NxN";
@@ -413,16 +424,22 @@ export function EntriesClient({
         <CardHeader className="flex flex-row flex-wrap items-end justify-between gap-3">
           <CardTitle>Lançamentos do período</CardTitle>
           <div className="flex flex-wrap items-end gap-2">
-            <Input className="w-44" placeholder="Filtrar descrição ou nº" value={filter} onChange={(e) => setFilter(e.target.value)} />
+            <Input
+              className="w-44"
+              placeholder="Filtrar descrição ou nº"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && go({ de: from, ate: to, q: filter.trim(), pagina: 1 })}
+            />
             <Input type="date" className="w-40" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="De" />
             <Input type="date" className="w-40" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Até" />
-            <Button variant="outline" onClick={() => router.push(`?de=${from}&ate=${to}`)}>
+            <Button variant="outline" onClick={() => go({ de: from, ate: to, q: filter.trim(), pagina: 1 })}>
               <Search /> Buscar
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="max-h-[28rem] overflow-y-auto">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -468,6 +485,13 @@ export function EntriesClient({
               </TableBody>
             </Table>
           </div>
+          <TablePagination
+            page={paging.page}
+            pageSize={paging.pageSize}
+            total={paging.total}
+            onPageChange={(pagina) => go({ pagina })}
+            onPageSizeChange={(por) => go({ por, pagina: 1 })}
+          />
         </CardContent>
       </Card>
     </div>

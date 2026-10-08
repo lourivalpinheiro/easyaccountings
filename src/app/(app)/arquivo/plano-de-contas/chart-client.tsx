@@ -5,6 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import { AccountPicker } from "@/components/account-picker";
 import { ConfirmDialog } from "@/components/confirm-button";
 import { Badge } from "@/components/ui/badge";
+import { TablePagination, usePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -104,6 +105,7 @@ export function ChartClient({ chart, categories: initialCategories }: { chart: A
     });
   }
 
+  const { rows: pageRows, pagination } = usePagination(filtered);
   const draftLevel = draft?.classification ? levelOf(draft.classification) : 0;
   const draftAnalytic = draft ? isAnalytic(draft.classification) : false;
 
@@ -145,7 +147,7 @@ export function ChartClient({ chart, categories: initialCategories }: { chart: A
                   </TableCell>
                 </TableRow>
               )}
-              {filtered.map((a) => (
+              {pageRows.map((a) => (
                 <TableRow key={a.id} className={cn(!a.analytic && "bg-muted/40")}>
                   <TableCell className="text-right text-muted-foreground tabular-nums">{a.reducedCode}</TableCell>
                   <TableCell className={cn("tabular-nums", !a.analytic && "font-semibold")}>{a.classification}</TableCell>
@@ -192,6 +194,7 @@ export function ChartClient({ chart, categories: initialCategories }: { chart: A
               ))}
             </TableBody>
           </Table>
+<TablePagination {...pagination} />
         </div>
       </CardContent>
 

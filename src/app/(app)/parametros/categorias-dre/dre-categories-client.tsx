@@ -3,6 +3,7 @@
 import { ArrowDown, ArrowUp, Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import { ConfirmAction } from "@/components/confirm-button";
+import { TablePagination, usePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ export function DreCategoriesClient({ categories }: { categories: Category[] }) 
   const [name, setName] = useState("");
   const [newName, setNewName] = useState("");
   const [pending, startTransition] = useTransition();
+  const { rows: pageRows, pagination } = usePagination(categories);
 
   const move = (index: number, delta: number) => {
     const ids = categories.map((c) => c.id);
@@ -63,7 +65,9 @@ export function DreCategoriesClient({ categories }: { categories: Category[] }) 
                 </TableCell>
               </TableRow>
             )}
-            {categories.map((c, i) => (
+            {pageRows.map((c) => {
+              const i = categories.indexOf(c);
+              return (
               <TableRow key={c.id}>
                 <TableCell className="tabular-nums">{i + 1}</TableCell>
                 <TableCell className="font-medium">
@@ -136,9 +140,11 @@ export function DreCategoriesClient({ categories }: { categories: Category[] }) 
                   )}
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
+        <TablePagination {...pagination} />
       </CardContent>
     </Card>
   );

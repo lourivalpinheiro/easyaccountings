@@ -4,6 +4,7 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { ConfirmAction } from "@/components/confirm-button";
 import { Badge } from "@/components/ui/badge";
+import { TablePagination, usePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,6 +23,7 @@ export function UsersClient({ users, currentUserId }: { users: User[]; currentUs
   const [role, setRole] = useState<"admin" | "user">("user");
   const [active, setActive] = useState(true);
   const [pending, startTransition] = useTransition();
+  const { rows: pageRows, pagination } = usePagination(users);
 
   function open(user: Partial<User>) {
     setEditing(user);
@@ -61,7 +63,7 @@ export function UsersClient({ users, currentUserId }: { users: User[]; currentUs
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((u) => (
+            {pageRows.map((u) => (
               <TableRow key={u.id}>
                 <TableCell className="font-medium">{u.name}</TableCell>
                 <TableCell>{u.email}</TableCell>
@@ -93,6 +95,7 @@ export function UsersClient({ users, currentUserId }: { users: User[]; currentUs
             ))}
           </TableBody>
         </Table>
+<TablePagination {...pagination} />
       </CardContent>
 
       <Dialog open={editing !== null} onOpenChange={(o) => !o && setEditing(null)}>

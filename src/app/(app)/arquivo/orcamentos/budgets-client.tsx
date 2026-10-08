@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { AccountPicker, type PickerAccount } from "@/components/account-picker";
 import { ConfirmAction } from "@/components/confirm-button";
 import { MoneyInput } from "@/components/money-input";
+import { TablePagination, usePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -24,6 +25,7 @@ type Budget = { id?: string; name: string; startDate: string; endDate: string; t
 export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accounts: PickerAccount[] }) {
   const [draft, setDraft] = useState<Budget | null>(null);
   const [pending, startTransition] = useTransition();
+  const { rows: pageRows, pagination } = usePagination(budgets);
 
   const itemsTotal = draft?.items.reduce((s, i) => s + i.cents, 0) ?? 0;
   const diff = (draft?.totalCents ?? 0) - itemsTotal;
@@ -82,7 +84,7 @@ export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accoun
                 </TableCell>
               </TableRow>
             )}
-            {budgets.map((b) => (
+            {pageRows.map((b) => (
               <TableRow key={b.id}>
                 <TableCell className="font-medium">{b.name}</TableCell>
                 <TableCell>
@@ -113,6 +115,7 @@ export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accoun
             ))}
           </TableBody>
         </Table>
+<TablePagination {...pagination} />
       </CardContent>
 
       <Dialog open={draft !== null} onOpenChange={(o) => !o && setDraft(null)}>

@@ -3,6 +3,7 @@
 import { Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { ConfirmAction } from "@/components/confirm-button";
+import { TablePagination, usePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toastResult } from "@/lib/toast-result";
@@ -18,7 +19,9 @@ type Note = {
 };
 
 export function NotesTable({ notes }: { notes: Note[] }) {
+  const { rows: pageRows, pagination } = usePagination(notes);
   return (
+    <>
     <Table>
       <TableHeader>
         <TableRow>
@@ -37,7 +40,7 @@ export function NotesTable({ notes }: { notes: Note[] }) {
             </TableCell>
           </TableRow>
         )}
-        {notes.map((n) => (
+        {pageRows.map((n) => (
           <TableRow key={n.id}>
             <TableCell className="tabular-nums">{n.number}</TableCell>
             <TableCell className="font-medium">{n.title}</TableCell>
@@ -69,5 +72,7 @@ export function NotesTable({ notes }: { notes: Note[] }) {
         ))}
       </TableBody>
     </Table>
+    <TablePagination {...pagination} />
+    </>
   );
 }

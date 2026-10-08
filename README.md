@@ -5,7 +5,7 @@ Sistema contábil multiempresa: Next.js 16, Drizzle ORM, Supabase (Postgres + Au
 ## Configuração
 
 1. `npm install`
-2. Copie `.env.example` para `.env.local` e preencha (banco, Supabase, `AUTH_2FA_SECRET`, SMTP).
+2. Copie `.env.example` para `.env.local` e preencha (banco, Supabase, `AUTH_2FA_SECRET`, e-mail).
 3. Aplique o schema: `npm run db:migrate`
 4. Crie o primeiro administrador (a senha é pedida no terminal):
    ```bash
@@ -16,7 +16,7 @@ Sistema contábil multiempresa: Next.js 16, Drizzle ORM, Supabase (Postgres + Au
 ## Autenticação
 
 - Login por e-mail e senha; não há cadastro público — contas são criadas por administradores em **Administração > Usuários**.
-- Segundo fator: código de 6 dígitos enviado por e-mail (SMTP). Sem `SMTP_HOST`, em desenvolvimento o código aparece no console do servidor.
+- Segundo fator: código de 6 dígitos enviado por e-mail (SMTP). Configure `RESEND_API_KEY` ou `SMTP_*` e `MAIL_FROM`; sem provedor de e-mail o login não é concluído.
 - Recuperação de senha pelo Supabase Auth. Em **Supabase > Authentication > URL Configuration**, adicione `SITE_URL/auth/callback` às Redirect URLs.
 
 ## Módulo contábil
@@ -28,4 +28,4 @@ Sistema contábil multiempresa: Next.js 16, Drizzle ORM, Supabase (Postgres + Au
 
 ## Deploy (Vercel)
 
-Configure as mesmas variáveis de ambiente do `.env.local` no projeto da Vercel, com `SITE_URL` apontando para o domínio de produção e SMTP obrigatório.
+Configure as mesmas variáveis de ambiente do `.env.local` no projeto da Vercel, com `SITE_URL` apontando para o domínio de produção e o provedor de e-mail configurado.
