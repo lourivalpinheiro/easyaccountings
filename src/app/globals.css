@@ -140,7 +140,8 @@
 }
 
 @media print {
-  @page { size: A4; margin: 12mm; }
+  /* Margem zero impede o navegador de imprimir data, título e endereço da página. */
+  @page { size: A4; margin: 0; }
   .no-print { display: none !important; }
   html, body { background: #fff !important; color: #000 !important; }
   /* O modo escuro define color-scheme: dark, e o navegador pinta as margens da folha de preto. */
@@ -171,7 +172,10 @@
     background: #fff !important;
     box-shadow: none !important;
     border: none !important;
-    padding: 0 !important;
+    /* A margem passa a ser interna e se repete em cada folha. */
+    padding: 12mm !important;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
     border-radius: 0 !important;
     width: 100% !important;
     overflow: visible !important;
