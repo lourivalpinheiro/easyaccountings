@@ -143,6 +143,26 @@
   @page { size: A4; margin: 12mm; }
   .no-print { display: none !important; }
   html, body { background: #fff !important; color: #000 !important; }
+
+  /* Impressão sempre no tema claro, mesmo com o modo escuro ativo. */
+  :root, .dark {
+    --background: #fff; --foreground: #000; --card: #fff; --card-foreground: #000;
+    --muted: #ececec; --muted-foreground: #000; --border: #bdbdbd; --primary: #000;
+  }
+
+  /* Sem sidebar nem espaço reservado: o relatório ocupa a largura toda da folha. */
+  [data-slot="sidebar"], [data-slot="sidebar-gap"], [data-slot="sidebar-container"] { display: none !important; }
+  [data-slot="sidebar-wrapper"], [data-slot="sidebar-inset"], main {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
   .print-area {
@@ -150,6 +170,9 @@
     box-shadow: none !important;
     border: none !important;
     padding: 0 !important;
+    border-radius: 0 !important;
+    width: 100% !important;
+    overflow: visible !important;
     font-size: 9.5pt;
   }
   /* Todo o texto do relatório em preto, inclusive tons secundários e de destaque. */
