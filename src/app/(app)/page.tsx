@@ -5,7 +5,7 @@ import { NoCompany, PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
 import { journalEntries } from "@/db/schema";
-import { formatCnpj, formatMoney } from "@/lib/accounting";
+import { formatDocument, formatMoney, PERSON_LABELS } from "@/lib/accounting";
 import { getChart, getMovements } from "@/lib/data/ledger";
 import { getPageContext } from "@/lib/page-context";
 import { todayIso, yearStartIso } from "@/lib/period";
@@ -52,7 +52,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <PageHeader title={`Olá, ${user.name.split(" ")[0]}`} description={`${company.legalName} · CNPJ ${formatCnpj(company.cnpj)}`} />
+      <PageHeader title={`Olá, ${user.name.split(" ")[0]}`} description={`${company.legalName} · ${PERSON_LABELS[company.personType].document} ${formatDocument(company.personType, company.document)}`} />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((s) => (
           <Card key={s.label}>

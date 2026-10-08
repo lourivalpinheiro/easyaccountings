@@ -3,6 +3,7 @@
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { ConfirmAction } from "@/components/confirm-button";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -16,26 +17,48 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatCnpj } from "@/lib/accounting";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { formatDocument, PERSON_LABELS, type PersonType } from "@/lib/accounting";
 import { toastResult } from "@/lib/toast-result";
 import { deleteCompany, saveCompany } from "../actions";
 
-type Company = { id: string; legalName: string; cnpj: string };
+type Company = { id: string; personType: PersonType; legalName: string; document: string };
+
+/** Aplica a máscara de CPF ou CNPJ enquanto o usuário digita. */
+function maskDocument(personType: PersonType, value: string) {
+  // [posição do dígito, separador inserido antes dele]
+  const pattern: [number, string][] =
+    personType === "PF"
+      ? [[3, "."], [6, "."], [9, "-"]]
+      : [[2, "."], [5, "."], [8, "/"], [12, "-"]];
+  const digits = value.replace(/\D/g, "").slice(0, personType === "PF" ? 11 : 14);
+  let out = "";
+  for (const [i, ch] of [...digits].entries()) {
+    out += (pattern.find(([pos]) => pos === i)?.[1] ?? "") + ch;
+  }
+  return out;
+}
 
 export function CompaniesClient({ companies }: { companies: Company[] }) {
   const [editing, setEditing] = useState<Partial<Company> | null>(null);
+  const [personType, setPersonType] = useState<PersonType>("PJ");
+  const [document, setDocument] = useState("");
   const [pending, startTransition] = useTransition();
+  const labels = PERSON_LABELS[personType];
+
+  function open(company: Partial<Company>) {
+    const type = company.personType ?? "PJ";
+    setEditing(company);
+    setPersonType(type);
+    setDocument(company.document ? formatDocument(type, company.document) : "");
+  }
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     startTransition(async () => {
       const ok = toastResult(
-        await saveCompany({
-          id: editing?.id,
-          legalName: String(fd.get("legalName")),
-          cnpj: String(fd.get("cnpj")),
-        }),
+        await saveCompany({ id: editing?.id, personType, legalName: String(fd.get("legalName")), document }),
         editing?.id ? "Empresa atualizada." : "Empresa cadastrada com plano de contas padrão.",
       );
       if (ok) setEditing(null);
@@ -46,22 +69,23 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
     <Card>
       <CardContent className="grid gap-4">
         <div className="flex justify-end">
-          <Button onClick={() => setEditing({})}>
+          <Button onClick={() => open({})}>
             <Plus /> Nova empresa
           </Button>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Razão social</TableHead>
-              <TableHead>CNPJ</TableHead>
+              <TableHead>Nome / Razão social</TableHead>
+              <TableHead className="w-36">Tipo</TableHead>
+              <TableHead>CPF / CNPJ</TableHead>
               <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {companies.length === 0 && (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground">
+                <TableCell colSpan={4} className="text-center text-muted-foreground">
                   Nenhuma empresa cadastrada.
                 </TableCell>
               </TableRow>
@@ -69,9 +93,12 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
             {companies.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className="font-medium">{c.legalName}</TableCell>
-                <TableCell>{formatCnpj(c.cnpj)}</TableCell>
+                <TableCell>
+                  <Badge variant={c.personType === "PJ" ? "default" : "secondary"}>{PERSON_LABELS[c.personType].type}</Badge>
+                </TableCell>
+                <TableCell className="tabular-nums">{formatDocument(c.personType, c.document)}</TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" aria-label="Editar" onClick={() => setEditing(c)}>
+                  <Button variant="ghost" size="icon" aria-label="Editar" onClick={() => open(c)}>
                     <Pencil />
                   </Button>
                   <ConfirmAction
@@ -102,16 +129,39 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
               )}
             </DialogHeader>
             <div className="grid gap-2">
-              <Label htmlFor="legalName">Razão social</Label>
+              <Label>Tipo de pessoa</Label>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                value={personType}
+                onValueChange={(v) => {
+                  if (!v) return;
+                  setPersonType(v as PersonType);
+                  setDocument((d) => maskDocument(v as PersonType, d));
+                }}
+                className="w-full"
+              >
+                <ToggleGroupItem value="PJ" className="flex-1">
+                  Pessoa Jurídica
+                </ToggleGroupItem>
+                <ToggleGroupItem value="PF" className="flex-1">
+                  Pessoa Física
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="legalName">{labels.name}</Label>
               <Input id="legalName" name="legalName" defaultValue={editing?.legalName} required />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="cnpj">CNPJ</Label>
+              <Label htmlFor="document">{labels.document}</Label>
               <Input
-                id="cnpj"
-                name="cnpj"
-                defaultValue={editing?.cnpj ? formatCnpj(editing.cnpj) : ""}
-                placeholder="00.000.000/0000-00"
+                id="document"
+                inputMode="numeric"
+                value={document}
+                onChange={(e) => setDocument(maskDocument(personType, e.target.value))}
+                placeholder={personType === "PF" ? "000.000.000-00" : "00.000.000/0000-00"}
+                className="tabular-nums"
                 required
               />
             </div>

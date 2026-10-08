@@ -150,6 +150,43 @@ export function isValidCnpj(value: string) {
   return calc(12) === Number(d[12]) && calc(13) === Number(d[13]);
 }
 
+export function formatCpf(cpf: string) {
+  const d = cpf.replace(/\D/g, "");
+  if (d.length !== 11) return cpf;
+  return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+}
+
+export function isValidCpf(value: string) {
+  const d = value.replace(/\D/g, "");
+  if (d.length !== 11 || /^(\d)\1+$/.test(d)) return false;
+  const digit = (len: number) => {
+    const sum = d
+      .slice(0, len)
+      .split("")
+      .reduce((acc, n, i) => acc + Number(n) * (len + 1 - i), 0);
+    const r = (sum * 10) % 11;
+    return r === 10 ? 0 : r;
+  };
+  return digit(9) === Number(d[9]) && digit(10) === Number(d[10]);
+}
+
+// ---------- Pessoa física (CPF) ou jurídica (CNPJ) ----------
+
+export type PersonType = "PF" | "PJ";
+
+export const PERSON_LABELS: Record<PersonType, { type: string; name: string; document: string }> = {
+  PF: { type: "Pessoa Física", name: "Nome", document: "CPF" },
+  PJ: { type: "Pessoa Jurídica", name: "Razão Social", document: "CNPJ" },
+};
+
+export function formatDocument(personType: PersonType, document: string) {
+  return personType === "PF" ? formatCpf(document) : formatCnpj(document);
+}
+
+export function isValidDocument(personType: PersonType, document: string) {
+  return personType === "PF" ? isValidCpf(document) : isValidCnpj(document);
+}
+
 export type EntryFormula = "1x1" | "1xN" | "Nx1" | "NxN";
 
 export const FORMULA_LABELS: Record<EntryFormula, string> = {

@@ -3,10 +3,10 @@
 import { Building2 } from "lucide-react";
 import { useTransition } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatCnpj } from "@/lib/accounting";
+import { formatDocument, type PersonType } from "@/lib/accounting";
 import { setActiveCompany } from "@/lib/company-actions";
 
-type Option = { id: string; legalName: string; cnpj: string };
+type Option = { id: string; personType: PersonType; legalName: string; document: string };
 
 export function CompanySwitcher({ companies, activeId }: { companies: Option[]; activeId?: string }) {
   const [pending, startTransition] = useTransition();
@@ -27,7 +27,7 @@ export function CompanySwitcher({ companies, activeId }: { companies: Option[]; 
         {companies.map((c) => (
           <SelectItem key={c.id} value={c.id}>
             <span className="truncate">{c.legalName}</span>
-            <span className="text-xs text-muted-foreground">{formatCnpj(c.cnpj)}</span>
+            <span className="text-xs text-muted-foreground">{formatDocument(c.personType, c.document)}</span>
           </SelectItem>
         ))}
       </SelectContent>

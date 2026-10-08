@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Verificação em duas etapas" };
 
 function maskEmail(email: string) {
   const [user, domain] = email.split("@");
-  return `${user.slice(0, 2)}${"*".repeat(Math.max(user.length - 2, 1))}@${domain}`;
+  return `${user.slice(0, 2)}${"*".repeat(Math.min(Math.max(user.length - 2, 1), 6))}@${domain}`;
 }
 
 export default async function VerifyPage() {

@@ -8,6 +8,20 @@
       "when": 1791484450544,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791486272139,
+      "tag": "0001_person_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791486282333,
+      "tag": "0002_drop_cnpj",
+      "breakpoints": true
     }
   ]
 }

@@ -22,6 +22,7 @@ export const accountGroup = pgEnum("account_group", [
   "receita",
   "apuracao",
 ]);
+export const personType = pgEnum("person_type", ["PF", "PJ"]);
 export const nature = pgEnum("nature", ["D", "C"]);
 export const entrySide = pgEnum("entry_side", ["D", "C"]);
 
@@ -45,8 +46,11 @@ export const profiles = pgTable("profiles", {
 
 export const companies = pgTable("companies", {
   id: uuid("id").primaryKey().defaultRandom(),
+  personType: personType("person_type").notNull().default("PJ"),
+  /** Razão social (PJ) ou nome completo (PF). */
   legalName: text("legal_name").notNull(),
-  cnpj: text("cnpj").notNull().unique(),
+  /** CNPJ (PJ) ou CPF (PF), somente dígitos. */
+  document: text("document").notNull().unique(),
   ...timestamps,
 }).enableRLS();
 

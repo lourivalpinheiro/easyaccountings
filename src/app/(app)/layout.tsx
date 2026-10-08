@@ -25,7 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mx-1 h-5" />
           <CompanySwitcher
-            companies={companies.map(({ id, legalName, cnpj }) => ({ id, legalName, cnpj }))}
+            companies={companies.map(({ id, personType, legalName, document }) => ({ id, personType, legalName, document }))}
             activeId={active?.id}
           />
           <div className="ml-auto flex items-center gap-1">

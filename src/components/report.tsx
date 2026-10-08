@@ -1,4 +1,4 @@
-import { formatCnpj, formatDate } from "@/lib/accounting";
+import { formatDate, formatDocument, PERSON_LABELS } from "@/lib/accounting";
 import type { Company } from "@/lib/company";
 import { cn } from "@/lib/utils";
 
@@ -18,12 +18,12 @@ export function ReportSheet({
     <article className="print-area overflow-x-auto rounded-lg border bg-card p-6 text-card-foreground shadow-sm print:overflow-visible">
       <header className="mb-4 grid gap-0.5 border-b pb-3 text-sm">
         <div>
-          <span className="text-muted-foreground">Razão Social: </span>
+          <span className="text-muted-foreground">{PERSON_LABELS[company.personType].name}: </span>
           <strong>{company.legalName}</strong>
         </div>
         <div>
-          <span className="text-muted-foreground">CNPJ: </span>
-          {formatCnpj(company.cnpj)}
+          <span className="text-muted-foreground">{PERSON_LABELS[company.personType].document}: </span>
+          {formatDocument(company.personType, company.document)}
         </div>
         <div>
           <span className="text-muted-foreground">Período: </span>

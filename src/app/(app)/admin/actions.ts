@@ -5,19 +5,23 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
 import { companies, profiles } from "@/db/schema";
-import { isValidCnpj } from "@/lib/accounting";
+import { isValidDocument, PERSON_LABELS } from "@/lib/accounting";
 import { run, UserError, type ActionResult } from "@/lib/action-utils";
 import { requireAdmin } from "@/lib/auth/session";
 import { seedCompany } from "@/lib/data/seed-company";
 import { createAdminClient } from "@/lib/supabase/server";
 
-const companySchema = z.object({
-  legalName: z.string().trim().min(2, "Informe a razão social."),
-  cnpj: z
-    .string()
-    .transform((v) => v.replace(/\D/g, ""))
-    .refine(isValidCnpj, "CNPJ inválido."),
-});
+const companySchema = z
+  .object({
+    personType: z.enum(["PF", "PJ"]),
+    legalName: z.string().trim().min(2, "Informe o nome ou a razão social."),
+    document: z.string().transform((v) => v.replace(/\D/g, "")),
+  })
+  .superRefine((c, ctx) => {
+    if (!isValidDocument(c.personType, c.document)) {
+      ctx.addIssue({ code: "custom", message: `${PERSON_LABELS[c.personType].document} inválido.` });
+    }
+  });
 
 function parse<T extends z.ZodType>(schema: T, input: unknown): z.infer<T> {
   const r = schema.safeParse(input);
@@ -25,7 +29,12 @@ function parse<T extends z.ZodType>(schema: T, input: unknown): z.infer<T> {
   return r.data;
 }
 
-export async function saveCompany(input: { id?: string; legalName: string; cnpj: string }): Promise<ActionResult> {
+export async function saveCompany(input: {
+  id?: string;
+  personType: "PF" | "PJ";
+  legalName: string;
+  document: string;
+}): Promise<ActionResult> {
   await requireAdmin();
   return run(async () => {
     const data = parse(companySchema, input);
