@@ -52,6 +52,9 @@ export const companies = pgTable("companies", {
   legalName: text("legal_name").notNull(),
   /** CNPJ (PJ) ou CPF (PF), somente dígitos; vazio para empresas informais (INF). */
   document: text("document").unique(),
+  /** Código secreto do link público (somente leitura); nulo = empresa privada. */
+  publicToken: text("public_token").unique(),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
   ...timestamps,
 }).enableRLS();
 

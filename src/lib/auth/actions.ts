@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
 import { mfaChallenges, profiles } from "@/db/schema";
+import { missingEnv } from "@/lib/env";
 import { sendMail } from "@/lib/mail";
 import { createClient } from "@/lib/supabase/server";
 import { getPasswordSession } from "./session";
@@ -52,24 +53,35 @@ export async function login(_: FormState, formData: FormData): Promise<FormState
   const parsed = loginSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error || !data.session) return { error: "E-mail ou senha inválidos." };
-
-  const [profile] = await db.select().from(profiles).where(eq(profiles.id, data.user.id));
-  if (!profile || !profile.active) {
-    await supabase.auth.signOut();
-    return { error: "Usuário sem acesso ao sistema. Procure um administrador." };
+  const missing = missingEnv();
+  if (missing.length > 0) {
+    console.error(`[login] Variáveis de ambiente ausentes: ${missing.join(", ")}`);
+    return { error: "O servidor não está configurado corretamente. Avise o administrador do sistema." };
   }
 
-  const { data: claimsData } = await supabase.auth.getClaims(data.session.access_token);
-  const sessionId = claimsData?.claims.session_id as string;
   try {
-    await issueChallenge(profile.id, sessionId, profile.email);
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
+    if (error || !data.session) return { error: "E-mail ou senha inválidos." };
+
+    const [profile] = await db.select().from(profiles).where(eq(profiles.id, data.user.id));
+    if (!profile || !profile.active) {
+      await supabase.auth.signOut();
+      return { error: "Usuário sem acesso ao sistema. Procure um administrador." };
+    }
+
+    const { data: claimsData } = await supabase.auth.getClaims(data.session.access_token);
+    const sessionId = claimsData?.claims.session_id as string;
+    try {
+      await issueChallenge(profile.id, sessionId, profile.email);
+    } catch (e) {
+      console.error("[login] Falha ao enviar o código de verificação:", e);
+      await supabase.auth.signOut();
+      return { error: "Não foi possível enviar o código de verificação. Tente novamente." };
+    }
   } catch (e) {
-    console.error(e);
-    await supabase.auth.signOut();
-    return { error: "Não foi possível enviar o código de verificação. Tente novamente." };
+    console.error("[login] Erro inesperado:", e);
+    return { error: "Erro no servidor ao entrar. Tente novamente em instantes." };
   }
   redirect("/verificacao");
 }

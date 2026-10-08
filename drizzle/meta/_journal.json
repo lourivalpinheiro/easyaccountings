@@ -29,6 +29,13 @@
       "when": 1791488713200,
       "tag": "0003_financeiro_informal",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791489005745,
+      "tag": "0004_publicacao",
+      "breakpoints": true
     }
   ]
 }
