@@ -1,6 +1,6 @@
 "use client";
 
-import { CopyPlus, FilePlus2, Lock, Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
+import { ChevronDown, CopyPlus, FilePlus2, Lock, Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { AccountPicker, type PickerAccount } from "@/components/account-picker";
@@ -9,8 +9,10 @@ import { MoneyInput } from "@/components/money-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -66,6 +68,49 @@ function draftFromEntry(e: Entry): Draft {
     debits,
     credits,
   };
+}
+
+/** Lista pesquisável de históricos padrão, aberta logo abaixo do botão. */
+function HistoryPicker({
+  histories,
+  onPick,
+}: {
+  histories: { code: number; description: string }[];
+  onPick: (code: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" size="icon" aria-label="Escolher histórico padrão">
+          <ChevronDown />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[min(28rem,90vw)] p-0" align="start">
+        <Command filter={(v, q) => (v.toLowerCase().includes(q.toLowerCase()) ? 1 : 0)}>
+          <CommandInput placeholder="Buscar histórico..." />
+          <CommandList>
+            <CommandEmpty>Nenhum histórico encontrado.</CommandEmpty>
+            <CommandGroup>
+              {histories.map((h) => (
+                <CommandItem
+                  key={h.code}
+                  value={`${h.code} ${h.description}`}
+                  onSelect={() => {
+                    onPick(String(h.code));
+                    setOpen(false);
+                  }}
+                >
+                  <span className="w-10 shrink-0 text-right tabular-nums text-muted-foreground">{h.code}</span>
+                  <span className="truncate">{h.description}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 const sum = (rows: Row[]) => rows.reduce((s, r) => s + r.cents, 0);
@@ -309,16 +354,7 @@ export function EntriesClient({
                   onChange={(e) => setHistoryCode(e.target.value.replace(/\D/g, ""))}
                 />
                 {editing && histories.length > 0 && (
-                  <Select value="" onValueChange={setHistoryCode}>
-                    <SelectTrigger className="w-9 px-2" aria-label="Escolher histórico" />
-                    <SelectContent>
-                      {histories.map((h) => (
-                        <SelectItem key={h.code} value={String(h.code)}>
-                          {h.code} - {h.description}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <HistoryPicker histories={histories} onPick={setHistoryCode} />
                 )}
               </div>
             </div>
