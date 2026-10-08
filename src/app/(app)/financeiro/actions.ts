@@ -1,12 +1,13 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
 import { cashFlowEntries } from "@/db/schema";
 import { centsToDecimal } from "@/lib/accounting";
 import { companyAction, UserError } from "@/lib/action-utils";
+import { assertPeriodOpen } from "@/lib/period-lock";
 
 const entrySchema = z.object({
   id: z.uuid().optional(),
@@ -26,6 +27,7 @@ export async function saveCashFlowEntry(input: z.input<typeof entrySchema>) {
     const parsed = entrySchema.safeParse(input);
     if (!parsed.success) throw new UserError(parsed.error.issues[0].message);
     const { id, cents, ...data } = parsed.data;
+    await assertPeriodOpen(companyId, data.date);
     const values = { ...data, amount: centsToDecimal(cents) };
     if (id) {
       const updated = await db
@@ -43,9 +45,28 @@ export async function saveCashFlowEntry(input: z.input<typeof entrySchema>) {
 
 export async function deleteCashFlowEntry(id: string) {
   return companyAction(async ({ companyId }) => {
+    const [current] = await db
+      .select({ date: cashFlowEntries.date })
+      .from(cashFlowEntries)
+      .where(and(eq(cashFlowEntries.id, id), eq(cashFlowEntries.companyId, companyId)));
+    if (!current) throw new UserError("Registro não encontrado.");
+    await assertPeriodOpen(companyId, current.date);
     await db
       .delete(cashFlowEntries)
       .where(and(eq(cashFlowEntries.id, id), eq(cashFlowEntries.companyId, companyId)));
+    revalidatePath("/financeiro", "layout");
+  });
+}
+
+export async function deleteCashFlowEntries(ids: string[]) {
+  return companyAction(async ({ companyId }) => {
+    if (ids.length === 0) return;
+    const current = await db
+      .select({ date: cashFlowEntries.date })
+      .from(cashFlowEntries)
+      .where(and(inArray(cashFlowEntries.id, ids), eq(cashFlowEntries.companyId, companyId)));
+    for (const e of current) await assertPeriodOpen(companyId, e.date);
+    await db.delete(cashFlowEntries).where(and(inArray(cashFlowEntries.id, ids), eq(cashFlowEntries.companyId, companyId)));
     revalidatePath("/financeiro", "layout");
   });
 }

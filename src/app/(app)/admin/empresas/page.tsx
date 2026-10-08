@@ -16,12 +16,14 @@ export default async function CompaniesPage() {
         description="Empresas podem ser pessoa física (CPF), jurídica (CNPJ) ou informais (sem documento). Cada uma possui plano de contas, parâmetros, lançamentos e relatórios próprios."
       />
       <CompaniesClient
-        companies={companies.map(({ id, personType, legalName, document, publicToken }) => ({
+        companies={companies.map(({ id, personType, legalName, displayName, document, publicToken, publicSections }) => ({
           id,
           personType,
           legalName,
+          displayName,
           document,
           publicToken,
+          publicSections,
         }))}
       />
     </>

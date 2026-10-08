@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
@@ -16,6 +16,11 @@ const companySchema = z
   .object({
     personType: z.enum(["PF", "PJ", "INF"]),
     legalName: z.string().trim().min(2, "Informe o nome ou a razão social."),
+    displayName: z
+      .string()
+      .trim()
+      .max(120)
+      .transform((v) => v || null),
     document: z.string().transform((v) => v.replace(/\D/g, "")),
   })
   .transform((c) => ({ ...c, document: c.personType === "INF" ? null : c.document }))
@@ -36,6 +41,7 @@ export async function saveCompany(input: {
   id?: string;
   personType: "PF" | "PJ" | "INF";
   legalName: string;
+  displayName: string;
   document: string;
 }): Promise<ActionResult> {
   await requireAdmin();
@@ -57,6 +63,14 @@ export async function deleteCompany(id: string): Promise<ActionResult> {
   await requireAdmin();
   return run(async () => {
     await db.delete(companies).where(eq(companies.id, id));
+    revalidatePath("/", "layout");
+  });
+}
+
+export async function deleteCompanies(ids: string[]): Promise<ActionResult> {
+  await requireAdmin();
+  return run(async () => {
+    if (ids.length > 0) await db.delete(companies).where(inArray(companies.id, ids));
     revalidatePath("/", "layout");
   });
 }
@@ -138,6 +152,19 @@ export async function deleteUser(id: string): Promise<ActionResult> {
   });
 }
 
+export async function deleteUsers(ids: string[]): Promise<ActionResult> {
+  const me = await requireAdmin();
+  return run(async () => {
+    if (ids.includes(me.id)) throw new UserError("Você não pode excluir o próprio usuário.");
+    const supabase = createAdminClient();
+    for (const id of ids) {
+      const { error } = await supabase.auth.admin.deleteUser(id);
+      if (error) throw new UserError(`Não foi possível excluir um dos usuários: ${error.message}`);
+    }
+    revalidatePath("/admin/usuarios");
+  });
+}
+
 /** Publica a empresa: gera um novo link secreto de acompanhamento (somente leitura). */
 export async function publishCompany(id: string): Promise<ActionResult<{ token: string }>> {
   await requireAdmin();
@@ -159,6 +186,18 @@ export async function unpublishCompany(id: string): Promise<ActionResult> {
   await requireAdmin();
   return run(async () => {
     await db.update(companies).set({ publicToken: null, publishedAt: null }).where(eq(companies.id, id));
+    revalidatePath("/admin/empresas");
+  });
+}
+
+/** Define quais seções (painel + relatórios) aparecem na página pública; vazio ou nulo = mostra todas. */
+export async function updatePublicSections(id: string, sections: string[]): Promise<ActionResult> {
+  await requireAdmin();
+  return run(async () => {
+    await db
+      .update(companies)
+      .set({ publicSections: sections.length > 0 ? sections : null })
+      .where(eq(companies.id, id));
     revalidatePath("/admin/empresas");
   });
 }

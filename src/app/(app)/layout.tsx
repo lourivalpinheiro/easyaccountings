@@ -7,6 +7,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { UserMenu } from "@/components/user-menu";
 import { requireUser } from "@/lib/auth/session";
 import { getActiveCompany, listCompanies } from "@/lib/company";
+import { AVATARS_BUCKET, publicUrl } from "@/lib/storage";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
@@ -32,7 +33,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <ThemeToggle />
-            <UserMenu name={user.name} email={user.email} role={user.role} />
+            <UserMenu
+              name={user.name}
+              email={user.email}
+              role={user.role}
+              avatarUrl={user.avatarPath ? publicUrl(AVATARS_BUCKET, user.avatarPath) : null}
+            />
           </div>
         </header>
         <main className="min-w-0 flex-1 p-3 sm:p-4 md:p-6">{children}</main>

@@ -3,11 +3,13 @@
 import { Copy, CornerDownRight, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { AccountPicker } from "@/components/account-picker";
+import { BulkDeleteBar } from "@/components/bulk-delete-bar";
 import { ConfirmDialog } from "@/components/confirm-button";
 import { Badge } from "@/components/ui/badge";
 import { TablePagination, usePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -38,7 +40,7 @@ import {
 import { toastResult } from "@/lib/toast-result";
 import { cn } from "@/lib/utils";
 import { saveDreCategory } from "../../parametros/actions";
-import { deleteAccount, saveAccount } from "../actions";
+import { deleteAccount, deleteAccounts, saveAccount } from "../actions";
 
 type Account = {
   id: string;
@@ -65,6 +67,7 @@ export function ChartClient({ chart, categories: initialCategories }: { chart: A
   const [categories, setCategories] = useState(initialCategories);
   const [newCategory, setNewCategory] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<Account | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const classifications = useMemo(() => chart.map((a) => a.classification), [chart]);
 
@@ -109,6 +112,19 @@ export function ChartClient({ chart, categories: initialCategories }: { chart: A
   const draftLevel = draft?.classification ? levelOf(draft.classification) : 0;
   const draftAnalytic = draft ? isAnalytic(draft.classification) : false;
 
+  function toggleRow(id: string, checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelected(checked ? new Set(pageRows.map((a) => a.id)) : new Set());
+  }
+
   return (
     <Card>
       <CardContent className="grid gap-4">
@@ -126,10 +142,18 @@ export function ChartClient({ chart, categories: initialCategories }: { chart: A
             <Plus /> Nova conta
           </Button>
         </div>
+        <BulkDeleteBar count={selected.size} onConfirm={() => deleteAccounts([...selected])} onDone={() => setSelected(new Set())} />
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={pageRows.length > 0 && pageRows.every((a) => selected.has(a.id))}
+                    onCheckedChange={(v) => toggleAll(v === true)}
+                    aria-label="Selecionar todos"
+                  />
+                </TableHead>
                 <TableHead className="hidden w-20 text-right sm:table-cell">Reduzido</TableHead>
                 <TableHead className="w-32">Classificação</TableHead>
                 <TableHead>Descrição</TableHead>
@@ -142,13 +166,16 @@ export function ChartClient({ chart, categories: initialCategories }: { chart: A
             <TableBody>
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
                     Nenhuma conta encontrada.
                   </TableCell>
                 </TableRow>
               )}
               {pageRows.map((a) => (
                 <TableRow key={a.id} className={cn(!a.analytic && "bg-muted/40")}>
+                  <TableCell>
+                    <Checkbox checked={selected.has(a.id)} onCheckedChange={(v) => toggleRow(a.id, v === true)} aria-label={`Selecionar ${a.name}`} />
+                  </TableCell>
                   <TableCell className="hidden text-right text-muted-foreground tabular-nums sm:table-cell">{a.reducedCode}</TableCell>
                   <TableCell className={cn("tabular-nums", !a.analytic && "font-semibold")}>{a.classification}</TableCell>
                   <TableCell className={cn(!a.analytic && "font-semibold")} style={{ paddingLeft: `${(a.level - 1) * 0.75 + 0.5}rem` }}>

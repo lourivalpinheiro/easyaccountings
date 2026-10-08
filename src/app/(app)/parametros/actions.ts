@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
@@ -91,6 +91,13 @@ export async function deleteDreCategory(id: string) {
   });
 }
 
+export async function deleteDreCategories(ids: string[]) {
+  return companyAction(async ({ companyId }) => {
+    if (ids.length > 0) await db.delete(dreCategories).where(and(eq(dreCategories.companyId, companyId), inArray(dreCategories.id, ids)));
+    revalidatePath("/", "layout");
+  });
+}
+
 // ---------- Históricos padrão ----------
 
 export async function saveHistoryCode(input: { id?: string; code: number; description: string }) {
@@ -113,6 +120,13 @@ export async function saveHistoryCode(input: { id?: string; code: number; descri
 export async function deleteHistoryCode(id: string) {
   return companyAction(async ({ companyId }) => {
     await db.delete(historyCodes).where(and(eq(historyCodes.id, id), eq(historyCodes.companyId, companyId)));
+    revalidatePath("/", "layout");
+  });
+}
+
+export async function deleteHistoryCodes(ids: string[]) {
+  return companyAction(async ({ companyId }) => {
+    if (ids.length > 0) await db.delete(historyCodes).where(and(eq(historyCodes.companyId, companyId), inArray(historyCodes.id, ids)));
     revalidatePath("/", "layout");
   });
 }

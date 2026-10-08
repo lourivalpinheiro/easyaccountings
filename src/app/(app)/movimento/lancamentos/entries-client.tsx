@@ -4,13 +4,17 @@ import { ChevronDown, CopyPlus, FilePlus2, Lock, Pencil, Plus, Save, Search, Tra
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { AccountPicker, type PickerAccount } from "@/components/account-picker";
+import { AttachmentsPanel } from "@/components/attachments-panel";
+import { BulkDeleteBar } from "@/components/bulk-delete-bar";
 import { ConfirmAction } from "@/components/confirm-button";
 import { MoneyInput } from "@/components/money-input";
 import { Badge } from "@/components/ui/badge";
 import { TablePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -26,9 +30,10 @@ import {
 import { todayIso } from "@/lib/period";
 import { toastResult } from "@/lib/toast-result";
 import { cn } from "@/lib/utils";
-import { deleteEntry, saveEntry } from "../actions";
+import { deleteEntries, deleteEntry, saveEntry } from "../actions";
 
 type Line = { accountId: string; side: "D" | "C"; cents: number };
+type Attachment = { id: string; fileName: string; mimeType: string; sizeBytes: number; isPublic: boolean };
 type Entry = {
   id: string;
   number: number;
@@ -37,6 +42,7 @@ type Entry = {
   description: string;
   closing: boolean;
   lines: Line[];
+  attachments: Attachment[];
 };
 type Row = { accountId: string | null; cents: number };
 type Draft = {
@@ -140,16 +146,30 @@ export function EntriesClient({
   entries: Entry[];
 }) {
   const router = useRouter();
-  const [selectedId, setSelectedId] = useState<string | null>(entries[0]?.id ?? null);
-  const [mode, setMode] = useState<"view" | "new" | "edit">(entries.length ? "view" : "new");
-  const [draft, setDraft] = useState<Draft>(() => (entries[0] ? draftFromEntry(entries[0]) : blankDraft()));
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mode, setMode] = useState<"closed" | "view" | "new" | "edit">("closed");
+  const [draft, setDraft] = useState<Draft>(blankDraft);
   const [from, setFrom] = useState(period.from);
   const [to, setTo] = useState(period.to);
   const [filter, setFilter] = useState(query);
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
 
+  function toggleBulkRow(id: string, checked: boolean) {
+    setBulkSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleBulkAll(checked: boolean) {
+    setBulkSelected(checked ? new Set(entries.filter((e) => !e.closing).map((e) => e.id)) : new Set());
+  }
+
   const selected = entries.find((e) => e.id === selectedId) ?? null;
-  const editing = mode !== "view";
+  const editing = mode === "new" || mode === "edit";
   const accountLabel = useMemo(() => new Map(accounts.map((a) => [a.id, `${a.classification} - ${a.name}`])), [accounts]);
 
   const totalD = sum(draft.debits);
@@ -175,11 +195,18 @@ export function EntriesClient({
   const select = (e: Entry) => {
     if (editing) return;
     setSelectedId(e.id);
+    setMode("view");
     setDraft(draftFromEntry(e));
   };
 
+  const close = () => {
+    setSelectedId(null);
+    setMode("closed");
+    setDraft(blankDraft());
+  };
+
   const cancel = () => {
-    setMode(selected ? "view" : "new");
+    setMode(selected ? "view" : "closed");
     setDraft(selected ? draftFromEntry(selected) : blankDraft());
   };
 
@@ -281,9 +308,10 @@ export function EntriesClient({
 
   return (
     <div className="grid gap-6">
-      <Card>
-        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <CardTitle className="flex items-center gap-2">
+      <Dialog open={mode !== "closed"} onOpenChange={(o) => !o && close()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+        <CardHeader className="flex flex-col gap-3 p-0 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <DialogTitle className="flex items-center gap-2">
             {mode === "new" ? "Novo lançamento" : `Lançamento nº ${draft.number ?? ""}`}
             {selected?.closing && mode === "view" && (
               <Badge variant="secondary">
@@ -291,7 +319,7 @@ export function EntriesClient({
               </Badge>
             )}
             {mode === "edit" && <Badge variant="outline">Editando</Badge>}
-          </CardTitle>
+          </DialogTitle>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {editing ? (
               <>
@@ -336,7 +364,7 @@ export function EntriesClient({
                       const next = entries.find((e) => e.id !== selected.id);
                       setSelectedId(next?.id ?? null);
                       setDraft(next ? draftFromEntry(next) : blankDraft());
-                      setMode(next ? "view" : "new");
+                      setMode(next ? "view" : "closed");
                     }
                   }}
                 >
@@ -344,11 +372,14 @@ export function EntriesClient({
                     <Trash2 className="text-destructive" /> Excluir
                   </Button>
                 </ConfirmAction>
+                <Button variant="ghost" onClick={close}>
+                  <X /> Fechar
+                </Button>
               </>
             )}
           </div>
         </CardHeader>
-        <CardContent className="grid gap-4">
+        <CardContent className="grid gap-4 p-0 pt-4">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-[10rem_8rem_1fr_16rem]">
             <div className="grid gap-2">
               <Label htmlFor="date">Data</Label>
@@ -417,13 +448,27 @@ export function EntriesClient({
               </div>
             </div>
           </div>
+
+          <AttachmentsPanel entryType="lancamento" entryId={draft.id} attachments={selected?.attachments ?? []} />
         </CardContent>
-      </Card>
+      </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
           <CardTitle>Lançamentos do período</CardTitle>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
+            {mode === "closed" && (
+              <Button
+                className="col-span-2 sm:order-first"
+                onClick={() => {
+                  setMode("new");
+                  setDraft(blankDraft());
+                }}
+              >
+                <FilePlus2 /> Novo lançamento
+              </Button>
+            )}
             <Input
               className="col-span-2 sm:w-44"
               placeholder="Filtrar descrição ou nº"
@@ -438,11 +483,23 @@ export function EntriesClient({
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="grid gap-3">
+          <BulkDeleteBar
+            count={bulkSelected.size}
+            onConfirm={() => deleteEntries([...bulkSelected])}
+            onDone={() => setBulkSelected(new Set())}
+          />
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={entries.some((e) => !e.closing) && entries.filter((e) => !e.closing).every((e) => bulkSelected.has(e.id))}
+                      onCheckedChange={(v) => toggleBulkAll(v === true)}
+                      aria-label="Selecionar todos"
+                    />
+                  </TableHead>
                   <TableHead className="w-16 text-right">Nº</TableHead>
                   <TableHead className="w-28">Data</TableHead>
                   <TableHead>Descrição</TableHead>
@@ -454,7 +511,7 @@ export function EntriesClient({
               <TableBody>
                 {visible.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
                       Nenhum lançamento entre {formatDate(period.from)} e {formatDate(period.to)}.
                     </TableCell>
                   </TableRow>
@@ -470,6 +527,15 @@ export function EntriesClient({
                       data-state={e.id === selectedId ? "selected" : undefined}
                       className={cn("cursor-pointer", editing && "cursor-not-allowed opacity-60")}
                     >
+                      <TableCell onClick={(evt) => evt.stopPropagation()}>
+                        {!e.closing && (
+                          <Checkbox
+                            checked={bulkSelected.has(e.id)}
+                            onCheckedChange={(v) => toggleBulkRow(e.id, v === true)}
+                            aria-label={`Selecionar lançamento ${e.number}`}
+                          />
+                        )}
+                      </TableCell>
                       <TableCell className="text-right tabular-nums">{e.number}</TableCell>
                       <TableCell>{formatDate(e.date)}</TableCell>
                       <TableCell className="max-w-40 truncate sm:max-w-64">

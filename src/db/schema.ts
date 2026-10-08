@@ -4,6 +4,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   pgTable,
@@ -26,6 +27,7 @@ export const personType = pgEnum("person_type", ["PF", "PJ", "INF"]);
 export const cashFlowType = pgEnum("cash_flow_type", ["entrada", "saida"]);
 export const nature = pgEnum("nature", ["D", "C"]);
 export const entrySide = pgEnum("entry_side", ["D", "C"]);
+export const reconciliationModule = pgEnum("reconciliation_module", ["contabil", "financeiro", "ambos"]);
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -42,6 +44,8 @@ export const profiles = pgTable("profiles", {
   email: text("email").notNull().unique(),
   role: userRole("role").notNull().default("user"),
   active: boolean("active").notNull().default(true),
+  /** Caminho da foto no bucket "avatars" (não a URL pronta). */
+  avatarPath: text("avatar_path"),
   ...timestamps,
 }).enableRLS();
 
@@ -50,11 +54,17 @@ export const companies = pgTable("companies", {
   personType: personType("person_type").notNull().default("PJ"),
   /** Razão social (PJ) ou nome completo (PF). */
   legalName: text("legal_name").notNull(),
+  /** Nome fantasia (PJ) ou apelido (PF); opcional, não se aplica a informais (INF). */
+  displayName: text("display_name"),
   /** CNPJ (PJ) ou CPF (PF), somente dígitos; vazio para empresas informais (INF). */
   document: text("document").unique(),
   /** Código secreto do link público (somente leitura); nulo = empresa privada. */
   publicToken: text("public_token").unique(),
   publishedAt: timestamp("published_at", { withTimezone: true }),
+  /** Slugs dos relatórios liberados na página pública; nulo = mostra todos. */
+  publicSections: jsonb("public_sections").$type<string[]>(),
+  /** Lançamentos (contábeis ou financeiros) com data até aqui ficam bloqueados; nulo = sem bloqueio. */
+  periodLockedUntil: date("period_locked_until"),
   ...timestamps,
 }).enableRLS();
 
@@ -264,6 +274,95 @@ export const cashFlowEntries = pgTable(
   (t) => [index("cash_flow_entries_company_date").on(t.companyId, t.date)],
 ).enableRLS();
 
+/** Comprovantes anexados a um lançamento contábil ou a uma movimentação do fluxo de caixa. */
+export const attachments = pgTable(
+  "attachments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    journalEntryId: uuid("journal_entry_id").references(() => journalEntries.id, { onDelete: "cascade" }),
+    cashFlowEntryId: uuid("cash_flow_entry_id").references(() => cashFlowEntries.id, { onDelete: "cascade" }),
+    fileName: text("file_name").notNull(),
+    /** Caminho no bucket "anexos" (privado; acesso sempre via signed URL). */
+    storagePath: text("storage_path").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    /** Se true, o anexo aparece também na página pública da empresa (quando publicada). */
+    isPublic: boolean("is_public").notNull().default(false),
+    createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [
+    index("attachments_journal_entry").on(t.journalEntryId),
+    index("attachments_cash_flow_entry").on(t.cashFlowEntryId),
+  ],
+).enableRLS();
+
+/** Extrato bancário importado em OFX. */
+export const bankStatements = pgTable(
+  "bank_statements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    /** Conta contábil que representa essa conta bancária no plano de contas. */
+    bankAccountId: uuid("bank_account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "restrict" }),
+    fileName: text("file_name").notNull(),
+    /** Arquivo original no bucket "anexos". */
+    storagePath: text("storage_path").notNull(),
+    importedBy: uuid("imported_by").references(() => profiles.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("bank_statements_company").on(t.companyId)],
+).enableRLS();
+
+/** Cada transação (STMTTRN) de um extrato importado, pendente ou já conciliada. */
+export const bankTransactions = pgTable(
+  "bank_transactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    statementId: uuid("statement_id")
+      .notNull()
+      .references(() => bankStatements.id, { onDelete: "cascade" }),
+    /** Id da transação no OFX (FITID); evita reimportar duplicado. */
+    fitId: text("fit_id"),
+    date: date("date").notNull(),
+    /** Centavos, com sinal: positivo = entrada/crédito, negativo = saída/débito. */
+    amountCents: integer("amount_cents").notNull(),
+    description: text("description").notNull(),
+    journalEntryId: uuid("journal_entry_id").references(() => journalEntries.id, { onDelete: "set null" }),
+    cashFlowEntryId: uuid("cash_flow_entry_id").references(() => cashFlowEntries.id, { onDelete: "set null" }),
+    /** Conciliada automaticamente por um Knot, sem intervenção manual. */
+    matchedByKnot: boolean("matched_by_knot").notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [
+    index("bank_transactions_statement").on(t.statementId),
+    uniqueIndex("bank_transactions_statement_fit").on(t.statementId, t.fitId),
+  ],
+).enableRLS();
+
+/** Regra de conciliação automática ("Knot"): mesma descrição do extrato reaplica a última escolha. */
+export const reconciliationRules = pgTable(
+  "reconciliation_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    /** Descrição normalizada (maiúsculas, espaços colapsados) usada como chave de match. */
+    pattern: text("pattern").notNull(),
+    module: reconciliationModule("module").notNull(),
+    counterAccountId: uuid("counter_account_id").references(() => accounts.id, { onDelete: "set null" }),
+    historyCode: integer("history_code"),
+    cashCategory: text("cash_category"),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("reconciliation_rules_company_pattern").on(t.companyId, t.pattern)],
+).enableRLS();
+
 export const accountsRelations = relations(accounts, ({ one }) => ({
   dreCategory: one(dreCategories, {
     fields: [accounts.dreCategoryId],
@@ -273,11 +372,35 @@ export const accountsRelations = relations(accounts, ({ one }) => ({
 
 export const journalEntriesRelations = relations(journalEntries, ({ many }) => ({
   lines: many(journalLines),
+  attachments: many(attachments),
+}));
+
+export const cashFlowEntriesRelations = relations(cashFlowEntries, ({ many }) => ({
+  attachments: many(attachments),
+}));
+
+export const attachmentsRelations = relations(attachments, ({ one }) => ({
+  journalEntry: one(journalEntries, {
+    fields: [attachments.journalEntryId],
+    references: [journalEntries.id],
+  }),
+  cashFlowEntry: one(cashFlowEntries, {
+    fields: [attachments.cashFlowEntryId],
+    references: [cashFlowEntries.id],
+  }),
 }));
 
 export const journalLinesRelations = relations(journalLines, ({ one }) => ({
   entry: one(journalEntries, { fields: [journalLines.entryId], references: [journalEntries.id] }),
   account: one(accounts, { fields: [journalLines.accountId], references: [accounts.id] }),
+}));
+
+export const bankStatementsRelations = relations(bankStatements, ({ many }) => ({
+  transactions: many(bankTransactions),
+}));
+
+export const bankTransactionsRelations = relations(bankTransactions, ({ one }) => ({
+  statement: one(bankStatements, { fields: [bankTransactions.statementId], references: [bankStatements.id] }),
 }));
 
 export const budgetsRelations = relations(budgets, ({ many }) => ({

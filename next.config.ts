@@ -11,6 +11,11 @@ const nextConfig: NextConfig = {
   },
   serverExternalPackages: ["postgres", "nodemailer"],
   poweredByHeader: false,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "20mb",
+    },
+  },
   async headers() {
     return [
       {

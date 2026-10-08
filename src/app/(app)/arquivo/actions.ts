@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, like, sql } from "drizzle-orm";
+import { and, eq, inArray, like, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
@@ -55,20 +55,26 @@ export async function saveAccount(input: z.input<typeof accountSchema>) {
     if (duplicate) throw new UserError(`A classificação ${data.classification} já é usada por "${duplicate.name}".`);
 
     if (!data.id) {
-      await db.transaction(async (tx) => {
+      const created = await db.transaction(async (tx) => {
         await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${"accounts:" + companyId}))`);
         const [{ next }] = await tx
           .select({ next: sql<number>`coalesce(max(${accounts.reducedCode}), 0) + 1` })
           .from(accounts)
           .where(eq(accounts.companyId, companyId));
-        await tx.insert(accounts).values({
-          companyId,
-          reducedCode: Number(next),
-          classification: data.classification,
-          name: data.name,
-          dreCategoryId: data.dreCategoryId,
-        });
+        const [row] = await tx
+          .insert(accounts)
+          .values({
+            companyId,
+            reducedCode: Number(next),
+            classification: data.classification,
+            name: data.name,
+            dreCategoryId: data.dreCategoryId,
+          })
+          .returning({ id: accounts.id });
+        return row;
       });
+      revalidatePath("/", "layout");
+      return created;
     } else {
       const current = chart.find((a) => a.id === data.id);
       if (!current) throw new UserError("Conta não encontrada.");
@@ -123,6 +129,27 @@ export async function deleteAccount(id: string) {
   });
 }
 
+export async function deleteAccounts(ids: string[]) {
+  return companyAction(async ({ companyId }) => {
+    if (ids.length === 0) return;
+    const idSet = new Set(ids);
+    const chart = await getChart(companyId);
+    await db.transaction(async (tx) => {
+      for (const id of ids) {
+        const account = chart.find((a) => a.id === id);
+        if (!account) throw new UserError("Conta não encontrada.");
+        if (chart.some((a) => a.classification.startsWith(`${account.classification}.`) && !idSet.has(a.id))) {
+          throw new UserError(`Exclua antes as contas filhas de ${account.classification}.`);
+        }
+        const [{ n }] = await tx.select({ n: sql<number>`count(*)` }).from(journalLines).where(eq(journalLines.accountId, id));
+        if (Number(n) > 0) throw new UserError(`A conta ${account.classification} possui lançamentos e não pode ser excluída.`);
+      }
+      await tx.delete(accounts).where(and(eq(accounts.companyId, companyId), inArray(accounts.id, ids)));
+    });
+    revalidatePath("/", "layout");
+  });
+}
+
 // ---------- Notas explicativas ----------
 
 const noteSchema = z.object({
@@ -168,6 +195,15 @@ export async function saveNote(input: z.input<typeof noteSchema>) {
 export async function deleteNote(id: string) {
   return companyAction(async ({ companyId }) => {
     await db.delete(explanatoryNotes).where(and(eq(explanatoryNotes.id, id), eq(explanatoryNotes.companyId, companyId)));
+    revalidatePath("/arquivo/notas-explicativas");
+  });
+}
+
+export async function deleteNotes(ids: string[]) {
+  return companyAction(async ({ companyId }) => {
+    if (ids.length > 0) {
+      await db.delete(explanatoryNotes).where(and(eq(explanatoryNotes.companyId, companyId), inArray(explanatoryNotes.id, ids)));
+    }
     revalidatePath("/arquivo/notas-explicativas");
   });
 }
@@ -228,6 +264,13 @@ export async function saveBudget(input: z.input<typeof budgetSchema>) {
 export async function deleteBudget(id: string) {
   return companyAction(async ({ companyId }) => {
     await db.delete(budgets).where(and(eq(budgets.id, id), eq(budgets.companyId, companyId)));
+    revalidatePath("/arquivo/orcamentos");
+  });
+}
+
+export async function deleteBudgets(ids: string[]) {
+  return companyAction(async ({ companyId }) => {
+    if (ids.length > 0) await db.delete(budgets).where(and(eq(budgets.companyId, companyId), inArray(budgets.id, ids)));
     revalidatePath("/arquivo/orcamentos");
   });
 }

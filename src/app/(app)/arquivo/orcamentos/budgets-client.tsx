@@ -1,14 +1,16 @@
 "use client";
 
-import { BarChart3, Pencil, Plus, Trash2, X } from "lucide-react";
+import { BarChart3, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { AccountPicker, type PickerAccount } from "@/components/account-picker";
+import { BulkDeleteBar } from "@/components/bulk-delete-bar";
 import { ConfirmAction } from "@/components/confirm-button";
 import { MoneyInput } from "@/components/money-input";
 import { TablePagination, usePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,15 +19,34 @@ import { formatDate, formatMoney } from "@/lib/accounting";
 import { todayIso, yearStartIso } from "@/lib/period";
 import { toastResult } from "@/lib/toast-result";
 import { cn } from "@/lib/utils";
-import { deleteBudget, saveBudget } from "../actions";
+import { deleteBudget, deleteBudgets, saveBudget } from "../actions";
 
 type Item = { accountId: string | null; cents: number };
 type Budget = { id?: string; name: string; startDate: string; endDate: string; totalCents: number; items: Item[] };
 
 export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accounts: PickerAccount[] }) {
   const [draft, setDraft] = useState<Budget | null>(null);
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
-  const { rows: pageRows, pagination } = usePagination(budgets);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? budgets.filter((b) => b.name.toLowerCase().includes(q)) : budgets;
+  }, [budgets, query]);
+  const { rows: pageRows, pagination } = usePagination(filtered);
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelected(checked ? new Set(pageRows.map((b) => b.id!)) : new Set());
+  }
 
   const itemsTotal = draft?.items.reduce((s, i) => s + i.cents, 0) ?? 0;
   const diff = (draft?.totalCents ?? 0) - itemsTotal;
@@ -51,7 +72,11 @@ export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accoun
   return (
     <Card>
       <CardContent className="grid gap-4">
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Buscar orçamento..." className="pl-8" value={query} onChange={(e) => setQuery(e.target.value)} />
+          </div>
           <Button
             onClick={() =>
               setDraft({
@@ -66,9 +91,17 @@ export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accoun
             <Plus /> Novo orçamento
           </Button>
         </div>
+        <BulkDeleteBar count={selected.size} onConfirm={() => deleteBudgets([...selected])} onDone={() => setSelected(new Set())} />
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={pageRows.length > 0 && pageRows.every((b) => selected.has(b.id!))}
+                  onCheckedChange={(v) => toggleAll(v === true)}
+                  aria-label="Selecionar todos"
+                />
+              </TableHead>
               <TableHead>Orçamento</TableHead>
               <TableHead className="hidden sm:table-cell">Período</TableHead>
               <TableHead className="hidden text-right md:table-cell">Contas</TableHead>
@@ -77,15 +110,18 @@ export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accoun
             </TableRow>
           </TableHeader>
           <TableBody>
-            {budgets.length === 0 && (
+            {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
-                  Nenhum orçamento cadastrado.
+                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  {budgets.length === 0 ? "Nenhum orçamento cadastrado." : "Nenhum orçamento encontrado."}
                 </TableCell>
               </TableRow>
             )}
             {pageRows.map((b) => (
               <TableRow key={b.id}>
+                <TableCell>
+                  <Checkbox checked={selected.has(b.id!)} onCheckedChange={(v) => toggleRow(b.id!, v === true)} aria-label={`Selecionar ${b.name}`} />
+                </TableCell>
                 <TableCell className="font-medium">{b.name}</TableCell>
                 <TableCell className="hidden sm:table-cell">
                   {formatDate(b.startDate)} a {formatDate(b.endDate)}

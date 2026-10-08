@@ -2,23 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { PUBLIC_SECTIONS } from "@/lib/public-sections";
 import { cn } from "@/lib/utils";
 
-export const PUBLIC_REPORTS = [
-  { title: "Balanço Patrimonial", slug: "balanco-patrimonial" },
-  { title: "Balancete", slug: "balancete" },
-  { title: "Livro Diário", slug: "livro-diario" },
-  { title: "Livro Razão", slug: "livro-razao" },
-  { title: "DRE", slug: "dre" },
-  { title: "Orçado x Realizado", slug: "orcamento" },
-  { title: "Fluxo de caixa", slug: "fluxo-de-caixa" },
-];
-
 /** Navegação do link público: rola horizontalmente no celular. */
-export function PublicNav({ token }: { token: string }) {
+export function PublicNav({ token, sections }: { token: string; sections: string[] | null }) {
   const pathname = usePathname();
   const base = `/publico/${token}`;
-  const items = [{ title: "Painel", href: base }, ...PUBLIC_REPORTS.map((r) => ({ title: r.title, href: `${base}/${r.slug}` }))];
+  const reports = sections ? PUBLIC_SECTIONS.filter((r) => sections.includes(r.slug)) : PUBLIC_SECTIONS;
+  const items = [{ title: "Painel", href: base }, ...reports.map((r) => ({ title: r.title, href: `${base}/${r.slug}` }))];
   return (
     <nav className="no-print -mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0" aria-label="Relatórios">
       <ul className="flex gap-1 whitespace-nowrap">

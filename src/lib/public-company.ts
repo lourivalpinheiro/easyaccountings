@@ -20,3 +20,8 @@ export const getPublishedCompany = cache(async (token: string) => {
   if (!company) notFound();
   return company;
 });
+
+/** Confirma que a seção está liberada na publicação; nulo = todas liberadas (compatibilidade). */
+export function requirePublicSection(company: { publicSections: string[] | null }, slug: string) {
+  if (company.publicSections && !company.publicSections.includes(slug)) notFound();
+}

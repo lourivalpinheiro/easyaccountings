@@ -1,7 +1,8 @@
 "use client";
 
 import { LogOut, UserRound } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import Link from "next/link";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,7 +14,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { logout } from "@/lib/auth/actions";
 
-export function UserMenu({ name, email, role }: { name: string; email: string; role: string }) {
+export function UserMenu({
+  name,
+  email,
+  role,
+  avatarUrl,
+}: {
+  name: string;
+  email: string;
+  role: string;
+  avatarUrl?: string | null;
+}) {
   const initials = name
     .split(" ")
     .filter(Boolean)
@@ -25,6 +36,7 @@ export function UserMenu({ name, email, role }: { name: string; email: string; r
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="rounded-full" aria-label="Menu do usuário">
           <Avatar className="size-8">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
             <AvatarFallback className="bg-primary text-primary-foreground">{initials || <UserRound />}</AvatarFallback>
           </Avatar>
         </Button>
@@ -37,6 +49,13 @@ export function UserMenu({ name, email, role }: { name: string; email: string; r
             {role === "admin" ? "Administrador" : "Usuário"}
           </span>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/perfil">
+            <UserRound />
+            Meu perfil
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => logout()}>
           <LogOut />

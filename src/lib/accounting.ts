@@ -174,10 +174,10 @@ export function isValidCpf(value: string) {
 
 export type PersonType = "PF" | "PJ" | "INF";
 
-export const PERSON_LABELS: Record<PersonType, { type: string; name: string; document: string }> = {
-  PF: { type: "Pessoa Física", name: "Nome", document: "CPF" },
-  PJ: { type: "Pessoa Jurídica", name: "Razão Social", document: "CNPJ" },
-  INF: { type: "Informal", name: "Nome", document: "" },
+export const PERSON_LABELS: Record<PersonType, { type: string; name: string; document: string; displayName: string }> = {
+  PF: { type: "Pessoa Física", name: "Nome completo", document: "CPF", displayName: "Apelido" },
+  PJ: { type: "Pessoa Jurídica", name: "Razão Social", document: "CNPJ", displayName: "Nome fantasia" },
+  INF: { type: "Informal", name: "Nome", document: "", displayName: "" },
 };
 
 /** Empresas informais não têm documento: retorna string vazia. */

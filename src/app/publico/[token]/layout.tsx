@@ -28,7 +28,7 @@ export default async function PublicLayout({ children, params }: LayoutProps<"/p
             </Badge>
             <ThemeToggle />
           </div>
-          <PublicNav token={token} />
+          <PublicNav token={token} sections={company.publicSections} />
         </div>
       </header>
       <main className="mx-auto w-full max-w-7xl min-w-0 flex-1 p-3 sm:p-4 md:p-6">{children}</main>

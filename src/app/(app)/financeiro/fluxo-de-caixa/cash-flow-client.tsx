@@ -4,11 +4,14 @@ import { ArrowDownCircle, ArrowUpCircle, FileText, Pencil, Plus, Search, Trash2,
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { AttachmentsPanel } from "@/components/attachments-panel";
+import { BulkDeleteBar } from "@/components/bulk-delete-bar";
 import { ConfirmAction } from "@/components/confirm-button";
 import { MoneyInput } from "@/components/money-input";
 import { TablePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,10 +22,19 @@ import { formatDate, formatMoney } from "@/lib/accounting";
 import { todayIso } from "@/lib/period";
 import { toastResult } from "@/lib/toast-result";
 import { cn } from "@/lib/utils";
-import { deleteCashFlowEntry, saveCashFlowEntry } from "../actions";
+import { deleteCashFlowEntries, deleteCashFlowEntry, saveCashFlowEntry } from "../actions";
 
 type FlowType = "entrada" | "saida";
-type Entry = { id: string; date: string; type: FlowType; description: string; category: string | null; cents: number };
+type Attachment = { id: string; fileName: string; mimeType: string; sizeBytes: number; isPublic: boolean };
+type Entry = {
+  id: string;
+  date: string;
+  type: FlowType;
+  description: string;
+  category: string | null;
+  cents: number;
+  attachments: Attachment[];
+};
 type Draft = { id?: string; date: string; type: FlowType; description: string; category: string; cents: number };
 
 const ALL = "todos";
@@ -48,8 +60,22 @@ export function CashFlowClient({
   const [to, setTo] = useState(period.to);
   const [q, setQ] = useState(filters.q);
   const [type, setType] = useState(filters.type || ALL);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const final = summary.previous + summary.inflow - summary.outflow;
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelected(checked ? new Set(entries.map((e) => e.id)) : new Set());
+  }
 
   const go = (changes: { pagina?: number; por?: number } = {}) => {
     const p = new URLSearchParams({
@@ -152,10 +178,22 @@ export function CashFlowClient({
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="grid gap-3">
+          <BulkDeleteBar
+            count={selected.size}
+            onConfirm={() => deleteCashFlowEntries([...selected])}
+            onDone={() => setSelected(new Set())}
+          />
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={entries.length > 0 && entries.every((e) => selected.has(e.id))}
+                    onCheckedChange={(v) => toggleAll(v === true)}
+                    aria-label="Selecionar todos"
+                  />
+                </TableHead>
                 <TableHead className="w-24">Data</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead className="hidden md:table-cell">Categoria</TableHead>
@@ -166,13 +204,16 @@ export function CashFlowClient({
             <TableBody>
               {entries.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     Nenhuma movimentação entre {formatDate(period.from)} e {formatDate(period.to)}.
                   </TableCell>
                 </TableRow>
               )}
               {entries.map((e) => (
                 <TableRow key={e.id}>
+                  <TableCell>
+                    <Checkbox checked={selected.has(e.id)} onCheckedChange={(v) => toggleRow(e.id, v === true)} aria-label={`Selecionar ${e.description}`} />
+                  </TableCell>
                   <TableCell className="tabular-nums">{formatDate(e.date)}</TableCell>
                   <TableCell className="max-w-40 sm:max-w-none">
                     <div className="truncate">{e.description}</div>
@@ -277,6 +318,11 @@ export function CashFlowClient({
                   ))}
                 </datalist>
               </div>
+              <AttachmentsPanel
+                entryType="movimentacao"
+                entryId={draft.id}
+                attachments={entries.find((e) => e.id === draft.id)?.attachments ?? []}
+              />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setDraft(null)}>
                   Cancelar

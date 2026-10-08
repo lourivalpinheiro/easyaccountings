@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
@@ -9,6 +9,7 @@ import { centsToDecimal } from "@/lib/accounting";
 import { companyAction, UserError } from "@/lib/action-utils";
 import { insertEntry } from "@/lib/data/entries";
 import { getChart } from "@/lib/data/ledger";
+import { assertPeriodOpen } from "@/lib/period-lock";
 
 const entrySchema = z.object({
   id: z.uuid().optional(),
@@ -38,6 +39,7 @@ export async function saveEntry(input: z.input<typeof entrySchema>) {
     const totalD = debits.reduce((s, l) => s + l.cents, 0);
     const totalC = credits.reduce((s, l) => s + l.cents, 0);
     if (totalD !== totalC) throw new UserError("O total de débitos deve ser igual ao total de créditos.");
+    await assertPeriodOpen(companyId, entry.date);
 
     const chart = await getChart(companyId);
     for (const l of lines) {
@@ -76,7 +78,25 @@ export async function deleteEntry(id: string) {
       .where(and(eq(journalEntries.id, id), eq(journalEntries.companyId, companyId)));
     if (!current) throw new UserError("Lançamento não encontrado.");
     if (current.closingBatchId) throw new UserError("Lançamentos de zeramento só podem ser estornados pelo zeramento.");
+    await assertPeriodOpen(companyId, current.date);
     await db.delete(journalEntries).where(eq(journalEntries.id, id));
+    revalidatePath("/", "layout");
+  });
+}
+
+export async function deleteEntries(ids: string[]) {
+  return companyAction(async ({ companyId }) => {
+    if (ids.length === 0) return;
+    const current = await db
+      .select()
+      .from(journalEntries)
+      .where(and(inArray(journalEntries.id, ids), eq(journalEntries.companyId, companyId)));
+    if (current.length !== ids.length) throw new UserError("Um dos lançamentos não foi encontrado.");
+    if (current.some((e) => e.closingBatchId)) {
+      throw new UserError("Lançamentos de zeramento só podem ser estornados pelo zeramento.");
+    }
+    for (const e of current) await assertPeriodOpen(companyId, e.date);
+    await db.delete(journalEntries).where(and(inArray(journalEntries.id, ids), eq(journalEntries.companyId, companyId)));
     revalidatePath("/", "layout");
   });
 }

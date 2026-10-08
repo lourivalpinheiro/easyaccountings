@@ -17,6 +17,8 @@ export type FormState = { error?: string; success?: string } | undefined;
 
 const CODE_TTL_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
+/** Depois de verificar o código, o navegador fica dispensado do 2FA por 7 dias. */
+const TWO_FACTOR_REMEMBER_SECONDS = 60 * 60 * 24 * 7;
 
 function hashCode(code: string) {
   return createHash("sha256").update(`${code}:${process.env.AUTH_2FA_SECRET}`).digest("hex");
@@ -120,6 +122,7 @@ export async function verifyCode(_: FormState, formData: FormData): Promise<Form
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
+    maxAge: TWO_FACTOR_REMEMBER_SECONDS,
   });
   redirect("/");
 }

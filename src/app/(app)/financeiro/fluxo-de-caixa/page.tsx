@@ -4,6 +4,7 @@ import { NoCompany, PageHeader } from "@/components/page-header";
 import { db } from "@/db";
 import { cashFlowEntries } from "@/db/schema";
 import { toCents } from "@/lib/accounting";
+import { getAttachmentsByCashFlowEntry } from "@/lib/data/attachments";
 import { getCashBalanceBefore, getCashTotals } from "@/lib/data/cash-flow";
 import { getPageContext } from "@/lib/page-context";
 import { readPeriod } from "@/lib/period";
@@ -50,6 +51,7 @@ export default async function CashFlowPage({ searchParams }: PageProps<"/finance
       .where(and(eq(cashFlowEntries.companyId, company.id), isNotNull(cashFlowEntries.category)))
       .orderBy(asc(cashFlowEntries.category)),
   ]);
+  const attachmentsByEntry = await getAttachmentsByCashFlowEntry(rows.map((r) => r.id));
 
   return (
     <>
@@ -67,6 +69,7 @@ export default async function CashFlowPage({ searchParams }: PageProps<"/finance
           description: r.description,
           category: r.category,
           cents: toCents(r.amount),
+          attachments: attachmentsByEntry.get(r.id) ?? [],
         }))}
       />
     </>

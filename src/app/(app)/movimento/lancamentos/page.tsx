@@ -4,6 +4,7 @@ import { NoCompany, PageHeader } from "@/components/page-header";
 import { db } from "@/db";
 import { historyCodes, journalEntries } from "@/db/schema";
 import { toCents } from "@/lib/accounting";
+import { getAttachmentsByJournalEntry } from "@/lib/data/attachments";
 import { getChart } from "@/lib/data/ledger";
 import { getPageContext } from "@/lib/page-context";
 import { readPeriod } from "@/lib/period";
@@ -50,6 +51,7 @@ export default async function EntriesPage({ searchParams }: PageProps<"/moviment
     }),
     db.select({ total: count() }).from(journalEntries).where(where),
   ]);
+  const attachmentsByEntry = await getAttachmentsByJournalEntry(entries.map((e) => e.id));
 
   return (
     <>
@@ -74,6 +76,7 @@ export default async function EntriesPage({ searchParams }: PageProps<"/moviment
           description: e.description,
           closing: Boolean(e.closingBatchId),
           lines: e.lines.map((l) => ({ accountId: l.accountId, side: l.side, cents: toCents(l.amount) })),
+          attachments: attachmentsByEntry.get(e.id) ?? [],
         }))}
       />
     </>

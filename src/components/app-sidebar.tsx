@@ -13,6 +13,7 @@ import {
   Settings2,
   ShieldCheck,
   Wallet,
+  Wrench,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -46,22 +47,12 @@ type Section = { title: string; icon: LucideIcon; items: { title: string; href: 
 
 const ACCOUNTING: Section[] = [
   {
-    title: "Parâmetros",
-    icon: Settings2,
-    items: [
-      { title: "Natureza das contas", href: "/parametros/natureza" },
-      { title: "Categorias de DRE", href: "/parametros/categorias-dre" },
-      { title: "Zeramento", href: "/parametros/zeramento" },
-      { title: "Históricos padrão", href: "/parametros/historicos" },
-    ],
-  },
-  {
     title: "Arquivo",
     icon: FolderOpen,
     items: [
-      { title: "Plano de contas", href: "/arquivo/plano-de-contas" },
       { title: "Notas explicativas", href: "/arquivo/notas-explicativas" },
       { title: "Orçamentos", href: "/arquivo/orcamentos" },
+      { title: "Plano de contas", href: "/arquivo/plano-de-contas" },
     ],
   },
   {
@@ -70,15 +61,32 @@ const ACCOUNTING: Section[] = [
     items: [{ title: "Lançamentos", href: "/movimento/lancamentos" }],
   },
   {
+    title: "Parâmetros",
+    icon: Settings2,
+    items: [
+      { title: "Categorias de DRE", href: "/parametros/categorias-dre" },
+      { title: "Históricos padrão", href: "/parametros/historicos" },
+      { title: "Natureza das contas", href: "/parametros/natureza" },
+    ],
+  },
+  {
     title: "Relatórios",
     icon: FileText,
     items: [
-      { title: "Balanço Patrimonial", href: "/relatorios/balanco-patrimonial" },
       { title: "Balancete de Verificação", href: "/relatorios/balancete" },
+      { title: "Balanço Patrimonial", href: "/relatorios/balanco-patrimonial" },
+      { title: "DRE", href: "/relatorios/dre" },
       { title: "Livro Diário", href: "/relatorios/livro-diario" },
       { title: "Livro Razão", href: "/relatorios/livro-razao" },
-      { title: "DRE", href: "/relatorios/dre" },
       { title: "Orçado x Realizado", href: "/relatorios/orcamento" },
+    ],
+  },
+  {
+    title: "Utilitários",
+    icon: Wrench,
+    items: [
+      { title: "Fechamento de período", href: "/utilitarios/fechamento" },
+      { title: "Zeramento", href: "/parametros/zeramento" },
     ],
   },
 ];
@@ -90,6 +98,15 @@ const FINANCE: Section[] = [
     items: [
       { title: "Entradas e saídas", href: "/financeiro/fluxo-de-caixa" },
       { title: "Relatório", href: "/financeiro/relatorio" },
+      { title: "Saúde de caixa", href: "/financeiro/saude" },
+    ],
+  },
+  {
+    title: "Utilitários",
+    icon: Wrench,
+    items: [
+      { title: "Conciliação bancária", href: "/utilitarios/conciliacao" },
+      { title: "Fechamento de período", href: "/utilitarios/fechamento" },
     ],
   },
 ];
@@ -98,8 +115,8 @@ const ADMIN: Section = {
   title: "Administração",
   icon: ShieldCheck,
   items: [
-    { title: "Usuários", href: "/admin/usuarios" },
     { title: "Empresas", href: "/admin/empresas" },
+    { title: "Usuários", href: "/admin/usuarios" },
   ],
 };
 

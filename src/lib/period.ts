@@ -8,6 +8,12 @@ export function yearStartIso() {
   return `${todayIso().slice(0, 4)}-01-01`;
 }
 
+export function addDaysIso(iso: string, days: number) {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+}
+
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 export function readPeriod(params: Record<string, string | string[] | undefined>) {
