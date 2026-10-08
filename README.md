@@ -1,36 +1,31 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Easy Accountings
 
-## Getting Started
+Sistema contábil multiempresa: Next.js 16, Drizzle ORM, Supabase (Postgres + Auth), shadcn/ui (tema azul claro/escuro), Lucide e fonte Changa.
 
-First, run the development server:
+## Configuração
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. `npm install`
+2. Copie `.env.example` para `.env.local` e preencha (banco, Supabase, `AUTH_2FA_SECRET`, SMTP).
+3. Aplique o schema: `npm run db:migrate`
+4. Crie o primeiro administrador (a senha é pedida no terminal):
+   ```bash
+   npm run create-admin -- "Nome Completo" email@dominio.com
+   ```
+5. `npm run dev` e acesse http://localhost:3000
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Autenticação
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Login por e-mail e senha; não há cadastro público — contas são criadas por administradores em **Administração > Usuários**.
+- Segundo fator: código de 6 dígitos enviado por e-mail (SMTP). Sem `SMTP_HOST`, em desenvolvimento o código aparece no console do servidor.
+- Recuperação de senha pelo Supabase Auth. Em **Supabase > Authentication > URL Configuration**, adicione `SITE_URL/auth/callback` às Redirect URLs.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Módulo contábil
 
-## Learn More
+- **Parâmetros**: natureza e numeração inicial dos grupos, categorias de DRE, zeramento (com estorno) e históricos padrão.
+- **Arquivo**: plano de contas (4 graus; só analíticas recebem lançamentos), notas explicativas com editor rico (exibidas no Balanço), orçamentos.
+- **Movimento**: lançamentos nas fórmulas 1x1, 1xN, Nx1 e NxN, com totais e diferença.
+- **Relatórios**: Balanço Patrimonial, Balancete de Verificação, Livro Diário, Livro Razão (várias contas), DRE e Orçado x Realizado — todos imprimíveis/PDF.
 
-To learn more about Next.js, take a look at the following resources:
+## Deploy (Vercel)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Configure as mesmas variáveis de ambiente do `.env.local` no projeto da Vercel, com `SITE_URL` apontando para o domínio de produção e SMTP obrigatório.
