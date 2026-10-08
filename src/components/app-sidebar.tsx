@@ -29,7 +29,16 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 type Section = { title: string; icon: LucideIcon; items: { title: string; href: string }[] };
 
@@ -82,9 +91,35 @@ const ADMIN: Section = {
 };
 
 function NavSection({ section, pathname }: { section: Section; pathname: string }) {
-  const open = section.items.some((i) => pathname.startsWith(i.href));
+  const { state, isMobile } = useSidebar();
+  const active = section.items.some((i) => pathname.startsWith(i.href));
+
+  // Recolhida, a sidebar mostra só ícones: as páginas da seção abrem num menu lateral.
+  if (state === "collapsed" && !isMobile) {
+    return (
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton isActive={active} aria-label={section.title}>
+              <section.icon />
+              <span>{section.title}</span>
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="start" className="min-w-52">
+            <DropdownMenuLabel>{section.title}</DropdownMenuLabel>
+            {section.items.map((item) => (
+              <DropdownMenuItem key={item.href} asChild className={cn(pathname.startsWith(item.href) && "bg-accent")}>
+                <Link href={item.href}>{item.title}</Link>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    );
+  }
+
   return (
-    <Collapsible asChild defaultOpen={open} className="group/collapsible">
+    <Collapsible asChild defaultOpen={active} className="group/collapsible">
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
           <SidebarMenuButton tooltip={section.title}>
