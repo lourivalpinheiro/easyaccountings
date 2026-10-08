@@ -2,6 +2,7 @@
 
 import {
   BookOpen,
+  Banknote,
   Building2,
   ChevronRight,
   FileText,
@@ -11,6 +12,7 @@ import {
   PenLine,
   Settings2,
   ShieldCheck,
+  Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -77,6 +79,17 @@ const ACCOUNTING: Section[] = [
       { title: "Livro Razão", href: "/relatorios/livro-razao" },
       { title: "DRE", href: "/relatorios/dre" },
       { title: "Orçado x Realizado", href: "/relatorios/orcamento" },
+    ],
+  },
+];
+
+const FINANCE: Section[] = [
+  {
+    title: "Fluxo de caixa",
+    icon: Banknote,
+    items: [
+      { title: "Entradas e saídas", href: "/financeiro/fluxo-de-caixa" },
+      { title: "Relatório", href: "/financeiro/relatorio" },
     ],
   },
 ];
@@ -175,6 +188,16 @@ export function AppSidebar({ isAdmin }: { isAdmin: boolean }) {
           </SidebarGroupLabel>
           <SidebarMenu>
             {ACCOUNTING.map((s) => (
+              <NavSection key={s.title} section={s} pathname={pathname} />
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>
+            <Wallet className="mr-2" /> Módulo Financeiro
+          </SidebarGroupLabel>
+          <SidebarMenu>
+            {FINANCE.map((s) => (
               <NavSection key={s.title} section={s} pathname={pathname} />
             ))}
           </SidebarMenu>

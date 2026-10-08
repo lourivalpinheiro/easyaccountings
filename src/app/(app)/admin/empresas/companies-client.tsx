@@ -23,11 +23,12 @@ import { formatDocument, PERSON_LABELS, type PersonType } from "@/lib/accounting
 import { toastResult } from "@/lib/toast-result";
 import { deleteCompany, saveCompany } from "../actions";
 
-type Company = { id: string; personType: PersonType; legalName: string; document: string };
+type Company = { id: string; personType: PersonType; legalName: string; document: string | null };
 
 /** Aplica a máscara de CPF ou CNPJ enquanto o usuário digita. */
 function maskDocument(personType: PersonType, value: string) {
   // [posição do dígito, separador inserido antes dele]
+  if (personType === "INF") return "";
   const pattern: [number, string][] =
     personType === "PF"
       ? [[3, "."], [6, "."], [9, "-"]]
@@ -99,9 +100,9 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
                   <div className="text-xs font-normal text-muted-foreground tabular-nums sm:hidden">{formatDocument(c.personType, c.document)}</div>
                 </TableCell>
                 <TableCell className="hidden md:table-cell">
-                  <Badge variant={c.personType === "PJ" ? "default" : "secondary"}>{PERSON_LABELS[c.personType].type}</Badge>
+                  <Badge variant={c.personType === "PJ" ? "default" : c.personType === "PF" ? "secondary" : "outline"}>{PERSON_LABELS[c.personType].type}</Badge>
                 </TableCell>
-                <TableCell className="hidden tabular-nums sm:table-cell">{formatDocument(c.personType, c.document)}</TableCell>
+                <TableCell className="hidden tabular-nums sm:table-cell">{formatDocument(c.personType, c.document) || "—"}</TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon" aria-label="Editar" onClick={() => open(c)}>
                     <Pencil />
@@ -153,12 +154,18 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
                 <ToggleGroupItem value="PF" className="flex-1">
                   Pessoa Física
                 </ToggleGroupItem>
+                <ToggleGroupItem value="INF" className="flex-1">
+                  Informal
+                </ToggleGroupItem>
               </ToggleGroup>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="legalName">{labels.name}</Label>
               <Input id="legalName" name="legalName" defaultValue={editing?.legalName} required />
             </div>
+            {personType === "INF" ? (
+              <p className="text-sm text-muted-foreground">Empresas informais não precisam de CPF ou CNPJ.</p>
+            ) : (
             <div className="grid gap-2">
               <Label htmlFor="document">{labels.document}</Label>
               <Input
@@ -171,6 +178,7 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
                 required
               />
             </div>
+            )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditing(null)}>
                 Cancelar

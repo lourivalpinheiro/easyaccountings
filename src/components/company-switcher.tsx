@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { formatDocument, type PersonType } from "@/lib/accounting";
 import { setActiveCompany } from "@/lib/company-actions";
 
-type Option = { id: string; personType: PersonType; legalName: string; document: string };
+type Option = { id: string; personType: PersonType; legalName: string; document: string | null };
 
 export function CompanySwitcher({ companies, activeId }: { companies: Option[]; activeId?: string }) {
   const [pending, startTransition] = useTransition();

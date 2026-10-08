@@ -13,11 +13,13 @@ import { createAdminClient } from "@/lib/supabase/server";
 
 const companySchema = z
   .object({
-    personType: z.enum(["PF", "PJ"]),
+    personType: z.enum(["PF", "PJ", "INF"]),
     legalName: z.string().trim().min(2, "Informe o nome ou a razão social."),
     document: z.string().transform((v) => v.replace(/\D/g, "")),
   })
+  .transform((c) => ({ ...c, document: c.personType === "INF" ? null : c.document }))
   .superRefine((c, ctx) => {
+    if (c.document === null) return;
     if (!isValidDocument(c.personType, c.document)) {
       ctx.addIssue({ code: "custom", message: `${PERSON_LABELS[c.personType].document} inválido.` });
     }
@@ -31,7 +33,7 @@ function parse<T extends z.ZodType>(schema: T, input: unknown): z.infer<T> {
 
 export async function saveCompany(input: {
   id?: string;
-  personType: "PF" | "PJ";
+  personType: "PF" | "PJ" | "INF";
   legalName: string;
   document: string;
 }): Promise<ActionResult> {

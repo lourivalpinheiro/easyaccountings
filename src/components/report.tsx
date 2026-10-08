@@ -21,10 +21,12 @@ export function ReportSheet({
           <span className="text-muted-foreground">{PERSON_LABELS[company.personType].name}: </span>
           <strong>{company.legalName}</strong>
         </div>
-        <div>
-          <span className="text-muted-foreground">{PERSON_LABELS[company.personType].document}: </span>
-          {formatDocument(company.personType, company.document)}
-        </div>
+        {company.document && (
+          <div>
+            <span className="text-muted-foreground">{PERSON_LABELS[company.personType].document}: </span>
+            {formatDocument(company.personType, company.document)}
+          </div>
+        )}
         <div>
           <span className="text-muted-foreground">Período: </span>
           {formatDate(period.from)} a {formatDate(period.to)}

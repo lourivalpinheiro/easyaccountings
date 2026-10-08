@@ -52,7 +52,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <PageHeader title={`Olá, ${user.name.split(" ")[0]}`} description={`${company.legalName} · ${PERSON_LABELS[company.personType].document} ${formatDocument(company.personType, company.document)}`} />
+      <PageHeader title={`Olá, ${user.name.split(" ")[0]}`} description={company.document ? `${company.legalName} · ${PERSON_LABELS[company.personType].document} ${formatDocument(company.personType, company.document)}` : `${company.legalName} · Informal`} />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((s) => (
           <Card key={s.label}>

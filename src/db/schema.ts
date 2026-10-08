@@ -22,7 +22,8 @@ export const accountGroup = pgEnum("account_group", [
   "receita",
   "apuracao",
 ]);
-export const personType = pgEnum("person_type", ["PF", "PJ"]);
+export const personType = pgEnum("person_type", ["PF", "PJ", "INF"]);
+export const cashFlowType = pgEnum("cash_flow_type", ["entrada", "saida"]);
 export const nature = pgEnum("nature", ["D", "C"]);
 export const entrySide = pgEnum("entry_side", ["D", "C"]);
 
@@ -49,8 +50,8 @@ export const companies = pgTable("companies", {
   personType: personType("person_type").notNull().default("PJ"),
   /** Razão social (PJ) ou nome completo (PF). */
   legalName: text("legal_name").notNull(),
-  /** CNPJ (PJ) ou CPF (PF), somente dígitos. */
-  document: text("document").notNull().unique(),
+  /** CNPJ (PJ) ou CPF (PF), somente dígitos; vazio para empresas informais (INF). */
+  document: text("document").unique(),
   ...timestamps,
 }).enableRLS();
 
@@ -239,6 +240,25 @@ export const mfaChallenges = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [index("mfa_challenges_session").on(t.sessionId)],
+).enableRLS();
+
+/** Módulo financeiro: entradas e saídas do fluxo de caixa. */
+export const cashFlowEntries = pgTable(
+  "cash_flow_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    type: cashFlowType("type").notNull(),
+    description: text("description").notNull(),
+    category: text("category"),
+    amount: numeric("amount", { precision: 18, scale: 2 }).notNull(),
+    createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [index("cash_flow_entries_company_date").on(t.companyId, t.date)],
 ).enableRLS();
 
 export const accountsRelations = relations(accounts, ({ one }) => ({
