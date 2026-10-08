@@ -46,9 +46,9 @@ export function TablePagination({ page, pageSize, total, onPageChange, onPageSiz
       <span className="tabular-nums">
         {first}–{last} de {total}
       </span>
-      <div className="flex items-center gap-4">
+      <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:w-auto sm:gap-4">
         <div className="flex items-center gap-2">
-          <span>Por página</span>
+          <span className="hidden sm:inline">Por página</span>
           <Select value={String(pageSize)} onValueChange={(v) => onPageSizeChange(Number(v))}>
             <SelectTrigger size="sm" className="w-20">
               <SelectValue />
@@ -62,20 +62,20 @@ export function TablePagination({ page, pageSize, total, onPageChange, onPageSiz
             </SelectContent>
           </Select>
         </div>
-        <span className="tabular-nums">
+        <span className="hidden tabular-nums sm:inline">
           Página {page} de {pageCount}
         </span>
         <div className="flex gap-1">
-          <Button variant="outline" size="icon" className="size-8" aria-label="Primeira página" disabled={page <= 1} onClick={() => onPageChange(1)}>
+          <Button variant="outline" size="icon" className="size-10 md:size-8" aria-label="Primeira página" disabled={page <= 1} onClick={() => onPageChange(1)}>
             <ChevronsLeft />
           </Button>
-          <Button variant="outline" size="icon" className="size-8" aria-label="Página anterior" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+          <Button variant="outline" size="icon" className="size-10 md:size-8" aria-label="Página anterior" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
             <ChevronLeft />
           </Button>
-          <Button variant="outline" size="icon" className="size-8" aria-label="Próxima página" disabled={page >= pageCount} onClick={() => onPageChange(page + 1)}>
+          <Button variant="outline" size="icon" className="size-10 md:size-8" aria-label="Próxima página" disabled={page >= pageCount} onClick={() => onPageChange(page + 1)}>
             <ChevronRight />
           </Button>
-          <Button variant="outline" size="icon" className="size-8" aria-label="Última página" disabled={page >= pageCount} onClick={() => onPageChange(pageCount)}>
+          <Button variant="outline" size="icon" className="size-10 md:size-8" aria-label="Última página" disabled={page >= pageCount} onClick={() => onPageChange(pageCount)}>
             <ChevronsRight />
           </Button>
         </div>

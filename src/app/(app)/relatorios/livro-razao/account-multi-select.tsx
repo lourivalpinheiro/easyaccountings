@@ -30,7 +30,7 @@ export function LedgerFilters({
         <Label>Contas</Label>
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
-            <Button variant="outline" role="combobox" className="w-72 justify-between font-normal">
+            <Button variant="outline" role="combobox" className="w-full justify-between font-normal sm:w-72">
               <span className="truncate">
                 {selected.length === 0
                   ? "Selecione as contas"

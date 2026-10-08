@@ -15,7 +15,7 @@ export function ReportSheet({
   children: React.ReactNode;
 }) {
   return (
-    <article className="print-area overflow-x-auto rounded-lg border bg-card p-6 text-card-foreground shadow-sm print:overflow-visible">
+    <article className="print-area overflow-x-auto rounded-lg border bg-card p-3 text-card-foreground sm:p-6 shadow-sm print:overflow-visible">
       <header className="mb-4 grid gap-0.5 border-b pb-3 text-sm">
         <div>
           <span className="text-muted-foreground">{PERSON_LABELS[company.personType].name}: </span>
@@ -30,7 +30,7 @@ export function ReportSheet({
           {formatDate(period.from)} a {formatDate(period.to)}
         </div>
       </header>
-      <h2 className="mb-4 text-center text-lg font-bold tracking-wide uppercase">{title}</h2>
+      <h2 className="mb-4 text-center text-base font-bold sm:text-lg tracking-wide uppercase">{title}</h2>
       {children}
       <footer className="mt-6 text-right text-xs text-muted-foreground">
         Emitido em {new Date().toLocaleString("pt-BR")} · Easy Accountings

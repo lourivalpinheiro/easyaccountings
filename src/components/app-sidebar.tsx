@@ -91,7 +91,7 @@ const ADMIN: Section = {
 };
 
 function NavSection({ section, pathname }: { section: Section; pathname: string }) {
-  const { state, isMobile } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const active = section.items.some((i) => pathname.startsWith(i.href));
 
   // Recolhida, a sidebar mostra só ícones: as páginas da seção abrem num menu lateral.
@@ -133,7 +133,7 @@ function NavSection({ section, pathname }: { section: Section; pathname: string 
             {section.items.map((item) => (
               <SidebarMenuSubItem key={item.href}>
                 <SidebarMenuSubButton asChild isActive={pathname.startsWith(item.href)}>
-                  <Link href={item.href}>
+                  <Link href={item.href} onClick={() => setOpenMobile(false)}>
                     <span>{item.title}</span>
                   </Link>
                 </SidebarMenuSubButton>
@@ -148,10 +148,11 @@ function NavSection({ section, pathname }: { section: Section; pathname: string 
 
 export function AppSidebar({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
   return (
     <Sidebar collapsible="icon" className="no-print">
       <SidebarHeader>
-        <Link href="/" className="px-1 py-1.5 group-data-[collapsible=icon]:px-0">
+        <Link href="/" onClick={() => setOpenMobile(false)} className="px-1 py-1.5 group-data-[collapsible=icon]:px-0">
           <Logo className="[&>span:last-child]:group-data-[collapsible=icon]:hidden" />
         </Link>
       </SidebarHeader>
@@ -160,7 +161,7 @@ export function AppSidebar({ isAdmin }: { isAdmin: boolean }) {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild isActive={pathname === "/"} tooltip="Início">
-                <Link href="/">
+                <Link href="/" onClick={() => setOpenMobile(false)}>
                   <LayoutDashboard />
                   <span>Início</span>
                 </Link>

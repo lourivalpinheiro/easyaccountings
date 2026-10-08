@@ -56,8 +56,8 @@ export function UsersClient({ users, currentUserId }: { users: User[]; currentUs
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
-              <TableHead>E-mail</TableHead>
-              <TableHead>Perfil</TableHead>
+              <TableHead className="hidden md:table-cell">E-mail</TableHead>
+              <TableHead className="hidden sm:table-cell">Perfil</TableHead>
               <TableHead>Situação</TableHead>
               <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
@@ -65,9 +65,12 @@ export function UsersClient({ users, currentUserId }: { users: User[]; currentUs
           <TableBody>
             {pageRows.map((u) => (
               <TableRow key={u.id}>
-                <TableCell className="font-medium">{u.name}</TableCell>
-                <TableCell>{u.email}</TableCell>
-                <TableCell>
+                <TableCell className="font-medium">
+                  {u.name}
+                  <div className="text-xs font-normal text-muted-foreground md:hidden">{u.email}</div>
+                </TableCell>
+                <TableCell className="hidden md:table-cell">{u.email}</TableCell>
+                <TableCell className="hidden sm:table-cell">
                   <Badge variant={u.role === "admin" ? "default" : "secondary"}>
                     {u.role === "admin" ? "Administrador" : "Usuário"}
                   </Badge>

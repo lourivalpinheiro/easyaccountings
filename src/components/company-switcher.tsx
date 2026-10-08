@@ -19,7 +19,7 @@ export function CompanySwitcher({ companies, activeId }: { companies: Option[]; 
       disabled={pending}
       onValueChange={(id) => startTransition(() => setActiveCompany(id))}
     >
-      <SelectTrigger className="w-full max-w-80" aria-label="Empresa ativa">
+      <SelectTrigger className="w-full min-w-0 max-w-80" aria-label="Empresa ativa">
         <Building2 />
         <SelectValue placeholder="Selecione a empresa" />
       </SelectTrigger>
@@ -27,7 +27,7 @@ export function CompanySwitcher({ companies, activeId }: { companies: Option[]; 
         {companies.map((c) => (
           <SelectItem key={c.id} value={c.id}>
             <span className="truncate">{c.legalName}</span>
-            <span className="text-xs text-muted-foreground">{formatDocument(c.personType, c.document)}</span>
+            <span className="hidden text-xs text-muted-foreground sm:inline">{formatDocument(c.personType, c.document)}</span>
           </SelectItem>
         ))}
       </SelectContent>

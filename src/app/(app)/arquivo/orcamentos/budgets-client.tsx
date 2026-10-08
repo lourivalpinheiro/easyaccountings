@@ -70,8 +70,8 @@ export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accoun
           <TableHeader>
             <TableRow>
               <TableHead>Orçamento</TableHead>
-              <TableHead>Período</TableHead>
-              <TableHead className="text-right">Contas</TableHead>
+              <TableHead className="hidden sm:table-cell">Período</TableHead>
+              <TableHead className="hidden text-right md:table-cell">Contas</TableHead>
               <TableHead className="text-right">Valor total</TableHead>
               <TableHead className="w-32 text-right">Ações</TableHead>
             </TableRow>
@@ -87,10 +87,10 @@ export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accoun
             {pageRows.map((b) => (
               <TableRow key={b.id}>
                 <TableCell className="font-medium">{b.name}</TableCell>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">
                   {formatDate(b.startDate)} a {formatDate(b.endDate)}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">{b.items.length}</TableCell>
+                <TableCell className="hidden text-right tabular-nums md:table-cell">{b.items.length}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatMoney(b.totalCents)}</TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon" aria-label="Orçado x realizado" asChild>
@@ -125,8 +125,8 @@ export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accoun
               <DialogHeader>
                 <DialogTitle>{draft.id ? "Editar orçamento" : "Novo orçamento"}</DialogTitle>
               </DialogHeader>
-              <div className="grid gap-3 md:grid-cols-[1fr_9.5rem_9.5rem_10rem]">
-                <div className="grid gap-2">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-[1fr_9.5rem_9.5rem_10rem]">
+                <div className="col-span-2 grid gap-2 md:col-span-1">
                   <Label htmlFor="b-name">Nome</Label>
                   <Input id="b-name" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
                 </div>
@@ -138,7 +138,7 @@ export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accoun
                   <Label htmlFor="b-end">Fim</Label>
                   <Input id="b-end" type="date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} required />
                 </div>
-                <div className="grid gap-2">
+                <div className="col-span-2 grid gap-2 md:col-span-1">
                   <Label htmlFor="b-total">Valor total</Label>
                   <MoneyInput id="b-total" value={draft.totalCents} onChange={(totalCents) => setDraft({ ...draft, totalCents })} />
                 </div>
@@ -146,8 +146,8 @@ export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accoun
               <div className="grid max-h-[50vh] gap-2 overflow-y-auto pr-1">
                 <Label>Contas orçadas</Label>
                 {draft.items.map((item, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_10rem_auto] gap-2">
-                    <AccountPicker accounts={accounts} value={item.accountId} onChange={(accountId) => setItem(i, { accountId })} />
+                  <div key={i} className="grid grid-cols-[1fr_auto] gap-2 border-b pb-2 sm:grid-cols-[1fr_10rem_auto] sm:border-0 sm:pb-0">
+                    <AccountPicker className="col-span-2 sm:col-span-1" accounts={accounts} value={item.accountId} onChange={(accountId) => setItem(i, { accountId })} />
                     <MoneyInput value={item.cents} onChange={(cents) => setItem(i, { cents })} aria-label="Valor orçado" />
                     <Button
                       type="button"

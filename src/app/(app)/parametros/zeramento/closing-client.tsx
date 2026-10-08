@@ -51,7 +51,7 @@ export function ClosingClient({
           <CardTitle>Contas do zeramento</CardTitle>
           <CardDescription>Conta intermediária de apuração e contas do Patrimônio Líquido que recebem o resultado.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
+        <CardContent className="grid gap-4 lg:grid-cols-3">
           <div className="grid gap-2">
             <Label>Conta de apuração do resultado</Label>
             <AccountPicker accounts={apuracaoAccounts} value={settings.resultAccountId} onChange={(id) => setSettings((s) => ({ ...s, resultAccountId: id }))} />
@@ -81,7 +81,7 @@ export function ClosingClient({
           <CardDescription>Os lançamentos serão gerados na data final do período.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="grid grid-cols-2 items-end gap-3 sm:flex sm:flex-wrap">
             <div className="grid gap-2">
               <Label htmlFor="from">De</Label>
               <Input id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -90,7 +90,7 @@ export function ClosingClient({
               <Label htmlFor="to">Até</Label>
               <Input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
             </div>
-            <Button variant="outline" onClick={() => router.push(`?de=${from}&ate=${to}`)}>
+            <Button variant="outline" className="col-span-2 sm:col-span-1" onClick={() => router.push(`?de=${from}&ate=${to}`)}>
               <Search /> Visualizar saldos
             </Button>
           </div>
@@ -156,7 +156,7 @@ export function ClosingClient({
               <TableRow>
                 <TableHead>Período</TableHead>
                 <TableHead>Resultado</TableHead>
-                <TableHead>Executado em</TableHead>
+                <TableHead className="hidden md:table-cell">Executado em</TableHead>
                 <TableHead className="w-28 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -178,7 +178,7 @@ export function ClosingClient({
                       {b.netResult >= 0 ? "Lucro" : "Prejuízo"} {formatMoney(Math.abs(b.netResult))}
                     </Badge>
                   </TableCell>
-                  <TableCell>{new Date(b.createdAt).toLocaleString("pt-BR")}</TableCell>
+                  <TableCell className="hidden md:table-cell">{new Date(b.createdAt).toLocaleString("pt-BR")}</TableCell>
                   <TableCell className="text-right">
                     <ConfirmAction
                       title="Estornar zeramento?"

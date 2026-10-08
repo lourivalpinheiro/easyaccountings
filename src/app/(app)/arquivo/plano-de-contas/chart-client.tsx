@@ -113,7 +113,7 @@ export function ChartClient({ chart, categories: initialCategories }: { chart: A
     <Card>
       <CardContent className="grid gap-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="relative w-full max-w-sm">
+          <div className="relative w-full sm:max-w-sm">
             <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="pl-8"
@@ -122,7 +122,7 @@ export function ChartClient({ chart, categories: initialCategories }: { chart: A
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <Button onClick={() => openNew()}>
+          <Button className="w-full sm:w-auto" onClick={() => openNew()}>
             <Plus /> Nova conta
           </Button>
         </div>
@@ -130,12 +130,12 @@ export function ChartClient({ chart, categories: initialCategories }: { chart: A
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-20 text-right">Reduzido</TableHead>
+                <TableHead className="hidden w-20 text-right sm:table-cell">Reduzido</TableHead>
                 <TableHead className="w-32">Classificação</TableHead>
                 <TableHead>Descrição</TableHead>
-                <TableHead className="w-24">Tipo</TableHead>
-                <TableHead className="w-24">Natureza</TableHead>
-                <TableHead>Categoria DRE</TableHead>
+                <TableHead className="hidden w-24 md:table-cell">Tipo</TableHead>
+                <TableHead className="hidden w-24 lg:table-cell">Natureza</TableHead>
+                <TableHead className="hidden lg:table-cell">Categoria DRE</TableHead>
                 <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
@@ -149,16 +149,16 @@ export function ChartClient({ chart, categories: initialCategories }: { chart: A
               )}
               {pageRows.map((a) => (
                 <TableRow key={a.id} className={cn(!a.analytic && "bg-muted/40")}>
-                  <TableCell className="text-right text-muted-foreground tabular-nums">{a.reducedCode}</TableCell>
+                  <TableCell className="hidden text-right text-muted-foreground tabular-nums sm:table-cell">{a.reducedCode}</TableCell>
                   <TableCell className={cn("tabular-nums", !a.analytic && "font-semibold")}>{a.classification}</TableCell>
-                  <TableCell className={cn(!a.analytic && "font-semibold")} style={{ paddingLeft: `${(a.level - 1) * 1.25 + 0.5}rem` }}>
+                  <TableCell className={cn(!a.analytic && "font-semibold")} style={{ paddingLeft: `${(a.level - 1) * 0.75 + 0.5}rem` }}>
                     {a.name}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     <Badge variant={a.analytic ? "default" : "outline"}>{a.analytic ? "Analítica" : "Sintética"}</Badge>
                   </TableCell>
-                  <TableCell>{a.nature === "D" ? "Devedora" : a.nature === "C" ? "Credora" : "—"}</TableCell>
-                  <TableCell className="text-sm">{a.dreCategoryName ?? <span className="text-muted-foreground">—</span>}</TableCell>
+                  <TableCell className="hidden lg:table-cell">{a.nature === "D" ? "Devedora" : a.nature === "C" ? "Credora" : "—"}</TableCell>
+                  <TableCell className="hidden text-sm lg:table-cell">{a.dreCategoryName ?? <span className="text-muted-foreground">—</span>}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -243,7 +243,7 @@ export function ChartClient({ chart, categories: initialCategories }: { chart: A
                   </p>
                 </div>
               )}
-              <div className="grid grid-cols-[10rem_1fr] gap-3">
+              <div className="grid gap-3 sm:grid-cols-[10rem_1fr]">
                 <div className="grid gap-2">
                   <Label htmlFor="classification">Classificação</Label>
                   <Input

@@ -233,12 +233,12 @@ export function EntriesClient({
       <div className="grid content-start gap-2">
         <Label>{isDebit ? "Débito" : "Crédito"}</Label>
         {draft[side].map((row, i) => (
-          <div key={i} className="grid grid-cols-[1fr_9rem_auto] gap-2">
+          <div key={i} className="grid grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_9rem_auto]">
             <AccountPicker
               accounts={accounts}
               value={row.accountId}
               onChange={(accountId) => setRow(side, i, { accountId })}
-              className={cn(!editing && "pointer-events-none opacity-90")}
+              className={cn("col-span-2 sm:col-span-1", !editing && "pointer-events-none opacity-90")}
               placeholder={isDebit ? "Conta a débito" : "Conta a crédito"}
             />
             <MoneyInput
@@ -282,7 +282,7 @@ export function EntriesClient({
   return (
     <div className="grid gap-6">
       <Card>
-        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <CardTitle className="flex items-center gap-2">
             {mode === "new" ? "Novo lançamento" : `Lançamento nº ${draft.number ?? ""}`}
             {selected?.closing && mode === "view" && (
@@ -292,7 +292,7 @@ export function EntriesClient({
             )}
             {mode === "edit" && <Badge variant="outline">Editando</Badge>}
           </CardTitle>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {editing ? (
               <>
                 <Button variant="outline" onClick={cancel} disabled={pending}>
@@ -349,7 +349,7 @@ export function EntriesClient({
           </div>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <div className="grid gap-3 md:grid-cols-[10rem_8rem_1fr_16rem]">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-[10rem_8rem_1fr_16rem]">
             <div className="grid gap-2">
               <Label htmlFor="date">Data</Label>
               <Input id="date" type="date" value={draft.date} disabled={!editing} onChange={(e) => update({ date: e.target.value })} />
@@ -369,7 +369,7 @@ export function EntriesClient({
                 )}
               </div>
             </div>
-            <div className="grid gap-2">
+            <div className="col-span-2 grid gap-2 lg:col-span-1">
               <Label htmlFor="description">Descrição</Label>
               <Input
                 id="description"
@@ -378,7 +378,7 @@ export function EntriesClient({
                 onChange={(e) => update({ description: e.target.value })}
               />
             </div>
-            <div className="grid gap-2">
+            <div className="col-span-2 grid gap-2 lg:col-span-1">
               <Label>Fórmula</Label>
               <Select value={draft.formula} onValueChange={(v) => setFormula(v as EntryFormula)} disabled={!editing}>
                 <SelectTrigger className="w-full">
@@ -400,20 +400,20 @@ export function EntriesClient({
             {sidePanel("credits")}
           </div>
 
-          <div className="grid grid-cols-3 gap-3 rounded-lg border bg-muted/40 p-3 text-sm tabular-nums">
+          <div className="grid grid-cols-3 gap-2 rounded-lg border bg-muted/40 p-3 text-xs tabular-nums sm:gap-3 sm:text-sm">
             <div>
               <div className="text-muted-foreground">Total de débitos</div>
-              <div className="text-lg font-semibold">{formatMoney(totalD)}</div>
+              <div className="text-sm font-semibold sm:text-lg">{formatMoney(totalD)}</div>
             </div>
             <div>
               <div className="text-muted-foreground">Total de créditos</div>
-              <div className="text-lg font-semibold">{formatMoney(totalC)}</div>
+              <div className="text-sm font-semibold sm:text-lg">{formatMoney(totalC)}</div>
             </div>
             <div>
               <div className="text-muted-foreground">Diferença</div>
-              <div className={cn("text-lg font-semibold", diff !== 0 ? "text-destructive" : "text-primary")}>
+              <div className={cn("text-sm font-semibold sm:text-lg", diff !== 0 ? "text-destructive" : "text-primary")}>
                 {formatMoney(Math.abs(diff))}
-                {diff !== 0 && <span className="ml-1 text-xs">({diff > 0 ? "débito maior" : "crédito maior"})</span>}
+                {diff !== 0 && <span className="ml-1 hidden text-xs sm:inline">({diff > 0 ? "débito maior" : "crédito maior"})</span>}
               </div>
             </div>
           </div>
@@ -421,19 +421,19 @@ export function EntriesClient({
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row flex-wrap items-end justify-between gap-3">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
           <CardTitle>Lançamentos do período</CardTitle>
-          <div className="flex flex-wrap items-end gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
             <Input
-              className="w-44"
+              className="col-span-2 sm:w-44"
               placeholder="Filtrar descrição ou nº"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && go({ de: from, ate: to, q: filter.trim(), pagina: 1 })}
             />
-            <Input type="date" className="w-40" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="De" />
-            <Input type="date" className="w-40" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Até" />
-            <Button variant="outline" onClick={() => go({ de: from, ate: to, q: filter.trim(), pagina: 1 })}>
+            <Input type="date" className="sm:w-40" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="De" />
+            <Input type="date" className="sm:w-40" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Até" />
+            <Button variant="outline" className="col-span-2 sm:col-span-1" onClick={() => go({ de: from, ate: to, q: filter.trim(), pagina: 1 })}>
               <Search /> Buscar
             </Button>
           </div>
@@ -446,8 +446,8 @@ export function EntriesClient({
                   <TableHead className="w-16 text-right">Nº</TableHead>
                   <TableHead className="w-28">Data</TableHead>
                   <TableHead>Descrição</TableHead>
-                  <TableHead>Débito</TableHead>
-                  <TableHead>Crédito</TableHead>
+                  <TableHead className="hidden md:table-cell">Débito</TableHead>
+                  <TableHead className="hidden md:table-cell">Crédito</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                 </TableRow>
               </TableHeader>
@@ -472,12 +472,12 @@ export function EntriesClient({
                     >
                       <TableCell className="text-right tabular-nums">{e.number}</TableCell>
                       <TableCell>{formatDate(e.date)}</TableCell>
-                      <TableCell className="max-w-64 truncate">
+                      <TableCell className="max-w-40 truncate sm:max-w-64">
                         {e.closing && <Lock className="mr-1 inline size-3 text-muted-foreground" />}
                         {e.description}
                       </TableCell>
-                      <TableCell className="max-w-56 truncate text-sm">{label(d)}</TableCell>
-                      <TableCell className="max-w-56 truncate text-sm">{label(c)}</TableCell>
+                      <TableCell className="hidden max-w-56 truncate text-sm md:table-cell">{label(d)}</TableCell>
+                      <TableCell className="hidden max-w-56 truncate text-sm md:table-cell">{label(c)}</TableCell>
                       <TableCell className="text-right tabular-nums">{formatMoney(sum(d))}</TableCell>
                     </TableRow>
                   );

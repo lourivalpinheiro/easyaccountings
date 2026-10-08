@@ -23,7 +23,7 @@ export function BudgetFilters({
       <div className="grid gap-1.5">
         <Label>Orçamento</Label>
         <Select value={budgetId} onValueChange={(id) => router.push(`?orcamento=${id}`)}>
-          <SelectTrigger className="w-72">
+          <SelectTrigger className="w-full sm:w-72">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

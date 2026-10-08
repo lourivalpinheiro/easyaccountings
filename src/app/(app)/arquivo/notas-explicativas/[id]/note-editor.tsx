@@ -31,7 +31,7 @@ export function NoteEditor({ note, accounts }: { note: Note; accounts: PickerAcc
   return (
     <Card>
       <CardContent className="grid gap-4">
-        <div className="grid gap-4 md:grid-cols-[6rem_1fr_1fr]">
+        <div className="grid grid-cols-[5rem_1fr] gap-4 md:grid-cols-[6rem_1fr_1fr]">
           <div className="grid gap-2">
             <Label htmlFor="number">Nota nº</Label>
             <Input
@@ -46,7 +46,7 @@ export function NoteEditor({ note, accounts }: { note: Note; accounts: PickerAcc
             <Label htmlFor="title">Título</Label>
             <Input id="title" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
           </div>
-          <div className="grid gap-2">
+          <div className="col-span-2 grid gap-2 md:col-span-1">
             <Label>Conta contábil vinculada</Label>
             <AccountPicker
               accounts={accounts}

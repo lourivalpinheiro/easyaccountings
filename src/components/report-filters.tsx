@@ -43,18 +43,18 @@ export function ReportFilters({
   };
 
   return (
-    <div className="no-print mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card p-3">
+    <div className="no-print mb-4 grid grid-cols-2 items-end gap-3 rounded-lg border bg-card p-3 sm:flex sm:flex-wrap">
       <div className="grid gap-1.5">
         <Label htmlFor="f-from">De</Label>
-        <Input id="f-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
+        <Input id="f-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full sm:w-40" />
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="f-to">Até</Label>
-        <Input id="f-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
+        <Input id="f-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full sm:w-40" />
       </div>
-      {children}
+      {children && <div className="col-span-2 sm:col-span-1">{children}</div>}
       {showZeroOption && (
-        <Label className="mb-2 flex items-center gap-2 font-normal">
+        <Label className="col-span-2 mb-2 flex items-center gap-2 font-normal">
           <Checkbox checked={zero} onCheckedChange={(v) => setZero(v === true)} />
           Exibir contas sem saldo
         </Label>
@@ -62,7 +62,7 @@ export function ReportFilters({
       <Button onClick={apply}>
         <Search /> Emitir
       </Button>
-      <Button variant="outline" onClick={() => window.print()} className="ml-auto">
+      <Button variant="outline" onClick={() => window.print()} className="sm:ml-auto">
         <Printer /> Imprimir / PDF
       </Button>
     </div>

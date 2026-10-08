@@ -79,8 +79,8 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
           <TableHeader>
             <TableRow>
               <TableHead>Nome / Razão social</TableHead>
-              <TableHead className="w-36">Tipo</TableHead>
-              <TableHead>CPF / CNPJ</TableHead>
+              <TableHead className="hidden w-36 md:table-cell">Tipo</TableHead>
+              <TableHead className="hidden sm:table-cell">CPF / CNPJ</TableHead>
               <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -94,11 +94,14 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
             )}
             {pageRows.map((c) => (
               <TableRow key={c.id}>
-                <TableCell className="font-medium">{c.legalName}</TableCell>
-                <TableCell>
+                <TableCell className="font-medium">
+                  {c.legalName}
+                  <div className="text-xs font-normal text-muted-foreground tabular-nums sm:hidden">{formatDocument(c.personType, c.document)}</div>
+                </TableCell>
+                <TableCell className="hidden md:table-cell">
                   <Badge variant={c.personType === "PJ" ? "default" : "secondary"}>{PERSON_LABELS[c.personType].type}</Badge>
                 </TableCell>
-                <TableCell className="tabular-nums">{formatDocument(c.personType, c.document)}</TableCell>
+                <TableCell className="hidden tabular-nums sm:table-cell">{formatDocument(c.personType, c.document)}</TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon" aria-label="Editar" onClick={() => open(c)}>
                     <Pencil />
