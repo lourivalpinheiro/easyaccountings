@@ -6,7 +6,8 @@ import {
   isTwoFactorCookieValid,
 } from "@/lib/auth/two-factor-cookie";
 
-const PUBLIC_PATHS = ["/login", "/recuperar-senha", "/auth/callback"];
+// "/publico": links de empresas publicadas, somente leitura e sem login.
+const PUBLIC_PATHS = ["/login", "/recuperar-senha", "/auth/callback", "/publico/"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });

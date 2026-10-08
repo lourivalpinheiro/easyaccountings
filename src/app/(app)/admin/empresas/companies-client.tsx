@@ -1,6 +1,7 @@
 "use client";
 
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Globe, Link2, Lock, Pencil, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { useState, useTransition } from "react";
 import { ConfirmAction } from "@/components/confirm-button";
 import { Badge } from "@/components/ui/badge";
@@ -21,9 +22,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatDocument, PERSON_LABELS, type PersonType } from "@/lib/accounting";
 import { toastResult } from "@/lib/toast-result";
-import { deleteCompany, saveCompany } from "../actions";
+import { deleteCompany, publishCompany, saveCompany, unpublishCompany } from "../actions";
 
-type Company = { id: string; personType: PersonType; legalName: string; document: string | null };
+const publicUrl = (token: string) => `${window.location.origin}/publico/${token}`;
+
+async function copyLink(token: string) {
+  try {
+    await navigator.clipboard.writeText(publicUrl(token));
+    toast.success("Link copiado.");
+  } catch {
+    toast.info(publicUrl(token));
+  }
+}
+
+type Company = { id: string; personType: PersonType; legalName: string; document: string | null; publicToken: string | null };
 
 /** Aplica a máscara de CPF ou CNPJ enquanto o usuário digita. */
 function maskDocument(personType: PersonType, value: string) {
@@ -97,13 +109,49 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
               <TableRow key={c.id}>
                 <TableCell className="font-medium">
                   {c.legalName}
+                  {c.publicToken && (
+                    <Badge variant="outline" className="ml-2 border-primary text-primary">
+                      <Globe /> Publicada
+                    </Badge>
+                  )}
                   <div className="text-xs font-normal text-muted-foreground tabular-nums sm:hidden">{formatDocument(c.personType, c.document)}</div>
                 </TableCell>
                 <TableCell className="hidden md:table-cell">
                   <Badge variant={c.personType === "PJ" ? "default" : c.personType === "PF" ? "secondary" : "outline"}>{PERSON_LABELS[c.personType].type}</Badge>
                 </TableCell>
                 <TableCell className="hidden tabular-nums sm:table-cell">{formatDocument(c.personType, c.document) || "—"}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right whitespace-nowrap">
+                  {c.publicToken ? (
+                    <>
+                      <Button variant="ghost" size="icon" aria-label="Copiar link público" title="Copiar link público" onClick={() => copyLink(c.publicToken!)}>
+                        <Link2 className="text-primary" />
+                      </Button>
+                      <ConfirmAction
+                        title="Tornar empresa privada?"
+                        description="O link público deixará de funcionar imediatamente. Se publicar de novo, um link diferente será gerado."
+                        confirmLabel="Tornar privada"
+                        onConfirm={async () => toastResult(await unpublishCompany(c.id), "Empresa privada; o link foi desativado.")}
+                      >
+                        <Button variant="ghost" size="icon" aria-label="Tornar privada" title="Tornar privada">
+                          <Lock />
+                        </Button>
+                      </ConfirmAction>
+                    </>
+                  ) : (
+                    <ConfirmAction
+                      title="Publicar empresa?"
+                      description="Será gerado um link secreto. Quem tiver o link poderá ver o painel e os relatórios desta empresa, sem login e sem poder fazer lançamentos."
+                      confirmLabel="Publicar"
+                      onConfirm={async () => {
+                        const result = await publishCompany(c.id);
+                        if (toastResult(result, "Empresa publicada.") && result.ok) await copyLink(result.data!.token);
+                      }}
+                    >
+                      <Button variant="ghost" size="icon" aria-label="Publicar" title="Publicar (gerar link de acompanhamento)">
+                        <Globe />
+                      </Button>
+                    </ConfirmAction>
+                  )}
                   <Button variant="ghost" size="icon" aria-label="Editar" onClick={() => open(c)}>
                     <Pencil />
                   </Button>

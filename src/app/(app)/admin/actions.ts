@@ -9,6 +9,7 @@ import { isValidDocument, PERSON_LABELS } from "@/lib/accounting";
 import { run, UserError, type ActionResult } from "@/lib/action-utils";
 import { requireAdmin } from "@/lib/auth/session";
 import { seedCompany } from "@/lib/data/seed-company";
+import { newPublicToken } from "@/lib/public-company";
 import { createAdminClient } from "@/lib/supabase/server";
 
 const companySchema = z
@@ -134,5 +135,30 @@ export async function deleteUser(id: string): Promise<ActionResult> {
     if (error) throw new UserError(`Não foi possível excluir o usuário: ${error.message}`);
     // O perfil é removido em cascata junto com auth.users.
     revalidatePath("/admin/usuarios");
+  });
+}
+
+/** Publica a empresa: gera um novo link secreto de acompanhamento (somente leitura). */
+export async function publishCompany(id: string): Promise<ActionResult<{ token: string }>> {
+  await requireAdmin();
+  return run(async () => {
+    const token = newPublicToken();
+    const updated = await db
+      .update(companies)
+      .set({ publicToken: token, publishedAt: new Date() })
+      .where(eq(companies.id, id))
+      .returning({ id: companies.id });
+    if (updated.length === 0) throw new UserError("Empresa não encontrada.");
+    revalidatePath("/admin/empresas");
+    return { token };
+  });
+}
+
+/** Torna a empresa privada: o link deixa de funcionar imediatamente. */
+export async function unpublishCompany(id: string): Promise<ActionResult> {
+  await requireAdmin();
+  return run(async () => {
+    await db.update(companies).set({ publicToken: null, publishedAt: null }).where(eq(companies.id, id));
+    revalidatePath("/admin/empresas");
   });
 }
