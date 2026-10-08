@@ -143,6 +143,8 @@
   @page { size: A4; margin: 12mm; }
   .no-print { display: none !important; }
   html, body { background: #fff !important; color: #000 !important; }
+  /* O modo escuro define color-scheme: dark, e o navegador pinta as margens da folha de preto. */
+  html, html.dark { color-scheme: light !important; }
 
   /* Impressão sempre no tema claro, mesmo com o modo escuro ativo. */
   :root, .dark {
