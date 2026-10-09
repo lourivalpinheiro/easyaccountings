@@ -120,6 +120,21 @@ export function formatBalance(cents: number) {
   return `${formatMoney(Math.abs(cents))} ${cents > 0 ? "D" : "C"}`;
 }
 
+/** Valor para relatórios: zero aparece como "-". */
+export function formatReportMoney(cents: number) {
+  return cents === 0 ? "-" : formatMoney(cents);
+}
+
+/** Saldo D/C para relatórios: zero aparece como "-". */
+export function formatReportBalance(cents: number) {
+  return cents === 0 ? "-" : formatBalance(cents);
+}
+
+/** Data e hora atuais no fuso de Brasília, independente do fuso do servidor. */
+export function formatNowBrasilia() {
+  return new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
 /** Converte texto digitado em pt-BR ("1.234,56") para centavos. */
 export function parseMoneyInput(text: string) {
   const clean = text.replace(/\s/g, "").replace(/\./g, "").replace(",", ".");

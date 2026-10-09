@@ -7,13 +7,13 @@ import { EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/rep
 import { ReportFilters } from "@/components/report-filters";
 import { db } from "@/db";
 import { dreCategories } from "@/db/schema";
-import { formatMoney } from "@/lib/accounting";
+import { formatReportMoney } from "@/lib/accounting";
 import { getChart, getMovements } from "@/lib/data/ledger";
 import { readPeriod } from "@/lib/period";
 import { cn } from "@/lib/utils";
 
 /** Valor do resultado: positivo aumenta o lucro (receitas), negativo reduz (despesas). */
-const signed = (cents: number) => (cents < 0 ? `(${formatMoney(-cents)})` : formatMoney(cents));
+const signed = (cents: number) => (cents < 0 ? `(${formatReportMoney(-cents)})` : formatReportMoney(cents));
 
 export async function IncomeStatementReport({ company, params }: { company: Company; params: SearchParams }) {
   const period = readPeriod(params);
@@ -101,7 +101,7 @@ export async function IncomeStatementReport({ company, params }: { company: Comp
               <tr className={cn("text-base font-bold", result >= 0 ? "text-primary" : "text-destructive")}>
                 <td />
                 <td className="text-right">{result >= 0 ? "LUCRO LÍQUIDO DO PERÍODO" : "PREJUÍZO LÍQUIDO DO PERÍODO"}</td>
-                <td className={cn(num, "border-t-2 border-double border-current")}>{formatMoney(Math.abs(result))}</td>
+                <td className={cn(num, "border-t-2 border-double border-current")}>{formatReportMoney(Math.abs(result))}</td>
               </tr>
             </tfoot>
           </ReportTable>

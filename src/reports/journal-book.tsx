@@ -4,7 +4,7 @@ import { Fragment } from "react";
 import { PageHeader } from "@/components/page-header";
 import { EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/report";
 import { ReportFilters } from "@/components/report-filters";
-import { formatBalance, formatDate, formatMoney } from "@/lib/accounting";
+import { formatReportBalance, formatDate, formatReportMoney } from "@/lib/accounting";
 import { getChart, getMovements } from "@/lib/data/ledger";
 import { getLedgerLines, groupByDate } from "@/lib/data/reports";
 import { readPeriod } from "@/lib/period";
@@ -81,10 +81,10 @@ export async function JournalBookReport({ company, params }: { company: Company;
                         <td className="text-muted-foreground">
                           {firstOfEntry ? `${r.historyCode ? `${r.historyCode} - ` : ""}${r.description}` : ""}
                         </td>
-                        <td className={num}>{formatBalance(r.previous)}</td>
-                        <td className={num}>{r.side === "D" ? formatMoney(r.cents) : ""}</td>
-                        <td className={num}>{r.side === "C" ? formatMoney(r.cents) : ""}</td>
-                        <td className={num}>{formatBalance(r.current)}</td>
+                        <td className={num}>{formatReportBalance(r.previous)}</td>
+                        <td className={num}>{r.side === "D" ? formatReportMoney(r.cents) : ""}</td>
+                        <td className={num}>{r.side === "C" ? formatReportMoney(r.cents) : ""}</td>
+                        <td className={num}>{formatReportBalance(r.current)}</td>
                       </tr>
                     );
                   })}
@@ -92,8 +92,8 @@ export async function JournalBookReport({ company, params }: { company: Company;
                     <td colSpan={4} className="text-right">
                       Total do dia {formatDate(day.date)}
                     </td>
-                    <td className={num}>{formatMoney(day.debit)}</td>
-                    <td className={num}>{formatMoney(day.credit)}</td>
+                    <td className={num}>{formatReportMoney(day.debit)}</td>
+                    <td className={num}>{formatReportMoney(day.credit)}</td>
                     <td />
                   </tr>
                 </Fragment>
@@ -104,8 +104,8 @@ export async function JournalBookReport({ company, params }: { company: Company;
                 <td colSpan={4} className="text-right">
                   Total do período
                 </td>
-                <td className={num}>{formatMoney(totalD)}</td>
-                <td className={num}>{formatMoney(totalC)}</td>
+                <td className={num}>{formatReportMoney(totalD)}</td>
+                <td className={num}>{formatReportMoney(totalC)}</td>
                 <td />
               </tr>
             </tfoot>

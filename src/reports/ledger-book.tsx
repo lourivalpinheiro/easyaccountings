@@ -3,7 +3,7 @@ import type { SearchParams } from "@/reports/types";
 import { Fragment } from "react";
 import { PageHeader } from "@/components/page-header";
 import { EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/report";
-import { formatBalance, formatDate, formatMoney, isDescendantOrSelf } from "@/lib/accounting";
+import { formatReportBalance, formatDate, formatReportMoney, isDescendantOrSelf } from "@/lib/accounting";
 import { getChart, getMovements, rollup } from "@/lib/data/ledger";
 import { getEntryLines, getLedgerLines, groupByDate } from "@/lib/data/reports";
 import { readPeriod } from "@/lib/period";
@@ -98,7 +98,7 @@ export async function LedgerBookReport({ company, params }: { company: Company; 
                   <tbody>
                     <tr className="font-semibold">
                       <td colSpan={6}>Saldo anterior</td>
-                      <td className={num}>{formatBalance(s.previous)}</td>
+                      <td className={num}>{formatReportBalance(s.previous)}</td>
                     </tr>
                     {s.days.map((day) => (
                       <Fragment key={day.date}>
@@ -111,18 +111,18 @@ export async function LedgerBookReport({ company, params }: { company: Company; 
                               {r.description}
                             </td>
                             <td className="text-muted-foreground">{counterpart(r.entryId, r.side)}</td>
-                            <td className={num}>{r.side === "D" ? formatMoney(r.cents) : ""}</td>
-                            <td className={num}>{r.side === "C" ? formatMoney(r.cents) : ""}</td>
-                            <td className={num}>{formatBalance(r.balance)}</td>
+                            <td className={num}>{r.side === "D" ? formatReportMoney(r.cents) : ""}</td>
+                            <td className={num}>{r.side === "C" ? formatReportMoney(r.cents) : ""}</td>
+                            <td className={num}>{formatReportBalance(r.balance)}</td>
                           </tr>
                         ))}
                         <tr className="bg-muted/50 text-xs font-semibold">
                           <td colSpan={4} className="text-right">
                             Movimento do dia {formatDate(day.date)}
                           </td>
-                          <td className={num}>{formatMoney(day.debit)}</td>
-                          <td className={num}>{formatMoney(day.credit)}</td>
-                          <td className={num}>{formatBalance(day.balance)}</td>
+                          <td className={num}>{formatReportMoney(day.debit)}</td>
+                          <td className={num}>{formatReportMoney(day.credit)}</td>
+                          <td className={num}>{formatReportBalance(day.balance)}</td>
                         </tr>
                       </Fragment>
                     ))}
@@ -132,9 +132,9 @@ export async function LedgerBookReport({ company, params }: { company: Company; 
                       <td colSpan={4} className="text-right">
                         Totais do período / Saldo final
                       </td>
-                      <td className={num}>{formatMoney(s.debit)}</td>
-                      <td className={num}>{formatMoney(s.credit)}</td>
-                      <td className={num}>{formatBalance(s.final)}</td>
+                      <td className={num}>{formatReportMoney(s.debit)}</td>
+                      <td className={num}>{formatReportMoney(s.credit)}</td>
+                      <td className={num}>{formatReportBalance(s.final)}</td>
                     </tr>
                   </tfoot>
                 </ReportTable>

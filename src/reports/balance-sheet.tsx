@@ -6,7 +6,7 @@ import { EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/rep
 import { ReportFilters } from "@/components/report-filters";
 import { db } from "@/db";
 import { explanatoryNotes } from "@/db/schema";
-import { formatBalance, formatMoney } from "@/lib/accounting";
+import { formatReportBalance, formatReportMoney } from "@/lib/accounting";
 import { getChart, getMovements, rollup } from "@/lib/data/ledger";
 import { readPeriod } from "@/lib/period";
 import { cn } from "@/lib/utils";
@@ -84,9 +84,9 @@ export async function BalanceSheetReport({ company, params }: { company: Company
                       </a>
                     ))}
                   </td>
-                  <td className={num}>{formatMoney(r.debit)}</td>
-                  <td className={num}>{formatMoney(r.credit)}</td>
-                  <td className={num}>{formatBalance(r.balance)}</td>
+                  <td className={num}>{formatReportMoney(r.debit)}</td>
+                  <td className={num}>{formatReportMoney(r.credit)}</td>
+                  <td className={num}>{formatReportBalance(r.balance)}</td>
                 </tr>
               ))}
             </tbody>
@@ -94,7 +94,7 @@ export async function BalanceSheetReport({ company, params }: { company: Company
         )}
         {unclosed !== 0 && (
           <p className="mt-3 text-sm text-muted-foreground">
-            Diferença entre Ativo e Passivo + Patrimônio Líquido de {formatBalance(unclosed)}, correspondente ao resultado
+            Diferença entre Ativo e Passivo + Patrimônio Líquido de {formatReportBalance(unclosed)}, correspondente ao resultado
             ainda não zerado.
           </p>
         )}

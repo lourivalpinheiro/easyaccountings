@@ -7,14 +7,14 @@ import { EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/rep
 import { ReportFilters } from "@/components/report-filters";
 import { db } from "@/db";
 import { cashFlowEntries } from "@/db/schema";
-import { formatDate, formatMoney, toCents } from "@/lib/accounting";
+import { formatDate, formatReportMoney, toCents } from "@/lib/accounting";
 import { getCashBalanceBefore } from "@/lib/data/cash-flow";
 import { groupByDate } from "@/lib/data/reports";
 import { readPeriod } from "@/lib/period";
 import { cn } from "@/lib/utils";
 
 /** Saldo com sinal: negativo indica caixa a descoberto. */
-const balance = (cents: number) => (cents < 0 ? `-${formatMoney(-cents)}` : formatMoney(cents));
+const balance = (cents: number) => (cents < 0 ? `-${formatReportMoney(-cents)}` : formatReportMoney(cents));
 
 export async function CashFlowReport({ company, params }: { company: Company; params: SearchParams }) {
   const period = readPeriod(params);
@@ -96,8 +96,8 @@ export async function CashFlowReport({ company, params }: { company: Company; pa
                         <td>{i === 0 ? formatDate(l.date) : ""}</td>
                         <td>{l.description}</td>
                         <td className="text-muted-foreground">{l.category ?? ""}</td>
-                        <td className={num}>{l.type === "entrada" ? formatMoney(l.cents) : ""}</td>
-                        <td className={num}>{l.type === "saida" ? formatMoney(l.cents) : ""}</td>
+                        <td className={num}>{l.type === "entrada" ? formatReportMoney(l.cents) : ""}</td>
+                        <td className={num}>{l.type === "saida" ? formatReportMoney(l.cents) : ""}</td>
                         <td className={cn(num, l.balance < 0 && "text-destructive")}>{balance(l.balance)}</td>
                       </tr>
                     ))}
@@ -105,8 +105,8 @@ export async function CashFlowReport({ company, params }: { company: Company; pa
                       <td colSpan={3} className="text-right">
                         Movimento do dia {formatDate(day.date)}
                       </td>
-                      <td className={num}>{formatMoney(day.inflow)}</td>
-                      <td className={num}>{formatMoney(day.outflow)}</td>
+                      <td className={num}>{formatReportMoney(day.inflow)}</td>
+                      <td className={num}>{formatReportMoney(day.outflow)}</td>
                       <td className={num}>{balance(day.balance)}</td>
                     </tr>
                   </Fragment>
@@ -117,8 +117,8 @@ export async function CashFlowReport({ company, params }: { company: Company; pa
                   <td colSpan={3} className="text-right">
                     Totais do período / Saldo final
                   </td>
-                  <td className={num}>{formatMoney(inflow)}</td>
-                  <td className={num}>{formatMoney(outflow)}</td>
+                  <td className={num}>{formatReportMoney(inflow)}</td>
+                  <td className={num}>{formatReportMoney(outflow)}</td>
                   <td className={cn(num, running < 0 && "text-destructive")}>{balance(running)}</td>
                 </tr>
               </tfoot>
@@ -139,8 +139,8 @@ export async function CashFlowReport({ company, params }: { company: Company; pa
                   {categories.map(([name, v]) => (
                     <tr key={name} className="border-b border-border/60">
                       <td>{name}</td>
-                      <td className={num}>{formatMoney(v.inflow)}</td>
-                      <td className={num}>{formatMoney(v.outflow)}</td>
+                      <td className={num}>{formatReportMoney(v.inflow)}</td>
+                      <td className={num}>{formatReportMoney(v.outflow)}</td>
                       <td className={cn(num, v.inflow - v.outflow < 0 && "text-destructive")}>{balance(v.inflow - v.outflow)}</td>
                     </tr>
                   ))}
@@ -148,8 +148,8 @@ export async function CashFlowReport({ company, params }: { company: Company; pa
                 <tfoot>
                   <tr className="border-t-2 border-foreground/70 font-bold">
                     <td>Resultado do período</td>
-                    <td className={num}>{formatMoney(inflow)}</td>
-                    <td className={num}>{formatMoney(outflow)}</td>
+                    <td className={num}>{formatReportMoney(inflow)}</td>
+                    <td className={num}>{formatReportMoney(outflow)}</td>
                     <td className={cn(num, inflow - outflow < 0 && "text-destructive")}>{balance(inflow - outflow)}</td>
                   </tr>
                 </tfoot>

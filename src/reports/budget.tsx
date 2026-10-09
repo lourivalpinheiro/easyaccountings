@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/report";
 import { db } from "@/db";
 import { budgets } from "@/db/schema";
-import { formatDate, formatMoney, toCents } from "@/lib/accounting";
+import { formatDate, formatReportMoney, toCents } from "@/lib/accounting";
 import { getChart, getMovements } from "@/lib/data/ledger";
 import { todayIso } from "@/lib/period";
 import { cn } from "@/lib/utils";
@@ -68,7 +68,7 @@ export async function BudgetReport({ company, params }: { company: Company; para
       <ReportSheet company={company} title={`Orçado x Realizado - ${budget.name}`} period={period}>
         <p className="mb-3 text-sm text-muted-foreground">
           Vigência do orçamento: {formatDate(budget.startDate)} a {formatDate(budget.endDate)} · Valor total orçado:{" "}
-          {formatMoney(toCents(budget.totalAmount))}
+          {formatReportMoney(toCents(budget.totalAmount))}
         </p>
         <ReportTable>
           <thead>
@@ -86,9 +86,9 @@ export async function BudgetReport({ company, params }: { company: Company; para
               <tr key={r.acc.id} className="border-b border-border/60">
                 <td className="tabular-nums">{r.acc.classification}</td>
                 <td>{r.acc.name}</td>
-                <td className={num}>{formatMoney(r.planned)}</td>
-                <td className={num}>{formatMoney(r.actual)}</td>
-                <td className={cn(num, r.diff < 0 && "text-destructive")}>{formatMoney(r.diff)}</td>
+                <td className={num}>{formatReportMoney(r.planned)}</td>
+                <td className={num}>{formatReportMoney(r.actual)}</td>
+                <td className={cn(num, r.diff < 0 && "text-destructive")}>{formatReportMoney(r.diff)}</td>
                 <td className={num}>
                   {r.pct === null ? (
                     "—"
@@ -110,9 +110,9 @@ export async function BudgetReport({ company, params }: { company: Company; para
           <tfoot>
             <tr className="border-t-2 border-foreground/70 font-bold">
               <td colSpan={2}>Total</td>
-              <td className={num}>{formatMoney(planned)}</td>
-              <td className={num}>{formatMoney(actual)}</td>
-              <td className={cn(num, planned - actual < 0 && "text-destructive")}>{formatMoney(planned - actual)}</td>
+              <td className={num}>{formatReportMoney(planned)}</td>
+              <td className={num}>{formatReportMoney(actual)}</td>
+              <td className={cn(num, planned - actual < 0 && "text-destructive")}>{formatReportMoney(planned - actual)}</td>
               <td className={num}>{planned ? `${((actual / planned) * 100).toFixed(1).replace(".", ",")}%` : "—"}</td>
             </tr>
           </tfoot>

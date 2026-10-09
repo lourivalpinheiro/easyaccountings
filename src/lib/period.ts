@@ -1,7 +1,8 @@
 /** Período padrão (início do ano até hoje) e leitura segura de datas da URL. */
+/** Data de hoje no fuso de Brasília, independente do fuso do servidor ou do navegador. */
 export function todayIso() {
-  const d = new Date();
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+  // en-CA formata como AAAA-MM-DD.
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 }
 
 export function yearStartIso() {

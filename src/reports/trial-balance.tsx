@@ -3,7 +3,7 @@ import type { SearchParams } from "@/reports/types";
 import { PageHeader } from "@/components/page-header";
 import { EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/report";
 import { ReportFilters } from "@/components/report-filters";
-import { formatBalance, formatMoney } from "@/lib/accounting";
+import { formatReportBalance, formatReportMoney } from "@/lib/accounting";
 import { getChart, getMovements, rollup } from "@/lib/data/ledger";
 import { readPeriod } from "@/lib/period";
 import { cn } from "@/lib/utils";
@@ -59,20 +59,20 @@ export async function TrialBalanceReport({ company, params }: { company: Company
                   <td className="text-right tabular-nums text-muted-foreground">{r.reducedCode}</td>
                   <td className="tabular-nums">{r.classification}</td>
                   <td style={{ paddingLeft: `${(r.level - 1) * 1 + 0.5}rem` }}>{r.name}</td>
-                  <td className={num}>{formatBalance(r.previous)}</td>
-                  <td className={num}>{formatMoney(r.debit)}</td>
-                  <td className={num}>{formatMoney(r.credit)}</td>
-                  <td className={num}>{formatBalance(r.current)}</td>
+                  <td className={num}>{formatReportBalance(r.previous)}</td>
+                  <td className={num}>{formatReportMoney(r.debit)}</td>
+                  <td className={num}>{formatReportMoney(r.credit)}</td>
+                  <td className={num}>{formatReportBalance(r.current)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-foreground/70 font-bold">
                 <td colSpan={4}>Totais do período</td>
-                <td className={num}>{formatMoney(totalD)}</td>
-                <td className={num}>{formatMoney(totalC)}</td>
+                <td className={num}>{formatReportMoney(totalD)}</td>
+                <td className={num}>{formatReportMoney(totalC)}</td>
                 <td className={cn(num, totalD !== totalC && "text-destructive")}>
-                  {totalD === totalC ? "Conferido" : `Diferença ${formatMoney(Math.abs(totalD - totalC))}`}
+                  {totalD === totalC ? "Conferido" : `Diferença ${formatReportMoney(Math.abs(totalD - totalC))}`}
                 </td>
               </tr>
             </tfoot>

@@ -1,4 +1,4 @@
-import { formatDate, formatDocument, PERSON_LABELS } from "@/lib/accounting";
+import { formatDate, formatDocument, formatNowBrasilia, PERSON_LABELS } from "@/lib/accounting";
 import type { Company } from "@/lib/company";
 import { cn } from "@/lib/utils";
 
@@ -35,7 +35,7 @@ export function ReportSheet({
       <h2 className="mb-4 text-center text-base font-bold sm:text-lg tracking-wide uppercase">{title}</h2>
       {children}
       <footer className="mt-6 text-right text-xs text-muted-foreground">
-        Emitido em {new Date().toLocaleString("pt-BR")} · Easy Accountings
+        Emitido em {formatNowBrasilia()} · Easy Accountings
       </footer>
     </article>
   );
