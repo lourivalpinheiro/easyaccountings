@@ -1,12 +1,12 @@
 import { BookOpen, Landmark, Scale, TrendingDown, TrendingUp, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
+import { DashboardPeriod } from "@/components/dashboard-period";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatDocument, formatMoney, PERSON_LABELS } from "@/lib/accounting";
 import { getCashTotals } from "@/lib/data/cash-flow";
 import { getChart, getMovements } from "@/lib/data/ledger";
 import type { Company } from "@/lib/company";
-import { todayIso, yearStartIso } from "@/lib/period";
 import { cn } from "@/lib/utils";
 
 export type Shortcut = { title: string; href: string; icon: LucideIcon; text: string };
@@ -104,19 +104,20 @@ async function getBalancePosition(companyId: string, date: string) {
 export async function CompanyDashboard({
   company,
   title,
+  period,
   accounting,
   finance,
 }: {
   company: Company;
   title: string;
+  /** Período das informações (padrão das páginas: mês atual completo). */
+  period: { from: string; to: string };
   accounting?: Shortcut[];
   finance?: Shortcut[];
 }) {
-  const today = todayIso();
-  const year = { from: yearStartIso(), to: today };
   const [position, cash] = await Promise.all([
-    accounting ? getBalancePosition(company.id, today) : null,
-    finance ? getCashTotals(company.id, year) : null,
+    accounting ? getBalancePosition(company.id, period.to) : null,
+    finance ? getCashTotals(company.id, period) : null,
   ]);
 
   const revenues = cash?.byType.entrada ?? 0;
@@ -134,11 +135,12 @@ export async function CompanyDashboard({
         }
       />
       <div className="grid gap-8">
+        <DashboardPeriod period={period} />
         {position && accounting && (
           <ModuleSection
             icon={BookOpen}
             title="Módulo Contábil"
-            description={`Posição patrimonial em ${formatDate(today)}.`}
+            description={`Posição patrimonial em ${formatDate(period.to)}.`}
             stats={[
               { label: "Ativo", value: position.assets, icon: Landmark, signed: true },
               { label: "Passivo", value: position.liabilities, icon: Scale, signed: true },
@@ -160,7 +162,7 @@ export async function CompanyDashboard({
           <ModuleSection
             icon={Wallet}
             title="Módulo Financeiro"
-            description={`Fluxo de caixa de ${formatDate(year.from)} a ${formatDate(year.to)}.`}
+            description={`Fluxo de caixa de ${formatDate(period.from)} a ${formatDate(period.to)}.`}
             stats={[
               { label: "Receitas", value: revenues, icon: TrendingUp, hint: "Entradas no caixa" },
               { label: "Despesas", value: expenses, icon: TrendingDown, hint: "Saídas e cartão de crédito" },

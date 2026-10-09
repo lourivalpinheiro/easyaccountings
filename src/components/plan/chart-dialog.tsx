@@ -3,7 +3,7 @@
 import { Plus, X } from "lucide-react";
 import { useState } from "react";
 import { usePlan } from "@/components/plan/plan-context";
-import { ChartSvg } from "@/components/plan/chart-view";
+import { InteractiveChart } from "@/components/interactive-chart";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -251,7 +251,7 @@ export function ChartDialog({
           <div className="grid content-start gap-3">
             {spec.source === "manual" && <ManualDataEditor value={spec.manual} onChange={(manual) => set({ manual })} />}
             <div className="rounded-md border p-3">
-              <ChartSvg data={chartData(spec, dataset, inputs)} type={spec.chartType} title={spec.title} />
+              <InteractiveChart key={`${spec.chartType}-${spec.source}`} data={chartData(spec, dataset, inputs)} type={spec.chartType} title={spec.title} />
             </div>
           </div>
         </div>

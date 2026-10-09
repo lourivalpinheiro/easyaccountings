@@ -1,11 +1,12 @@
 import { BarChart3, BookOpen, BookText, FileText, NotebookPen, Scale, Wallet } from "lucide-react";
 import type { Metadata } from "next";
+import { readMonthPeriod } from "@/lib/period";
 import { getPublishedCompany } from "@/lib/public-company";
 import { CompanyDashboard, type Shortcut } from "@/reports/dashboard";
 
 export const metadata: Metadata = { title: "Painel" };
 
-export default async function PublicDashboardPage({ params }: PageProps<"/publico/[token]">) {
+export default async function PublicDashboardPage({ params, searchParams }: PageProps<"/publico/[token]">) {
   const { token } = await params;
   const company = await getPublishedCompany(token);
   const base = `/publico/${token}`;
@@ -28,6 +29,7 @@ export default async function PublicDashboardPage({ params }: PageProps<"/public
     <CompanyDashboard
       company={company}
       title="Painel da empresa"
+      period={readMonthPeriod(await searchParams)}
       accounting={accounting.length > 0 ? accounting : undefined}
       finance={finance.length > 0 ? finance : undefined}
     />

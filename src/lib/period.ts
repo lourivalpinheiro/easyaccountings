@@ -22,3 +22,19 @@ export function readPeriod(params: Record<string, string | string[] | undefined>
   const to = typeof params.ate === "string" && ISO.test(params.ate) ? params.ate : todayIso();
   return { from, to };
 }
+
+/** Primeiro e último dia do mês da data (AAAA-MM-DD). */
+export function monthRangeIso(iso: string) {
+  const [y, m] = iso.split("-").map(Number);
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const mm = String(m).padStart(2, "0");
+  return { from: `${y}-${mm}-01`, to: `${y}-${mm}-${String(last).padStart(2, "0")}` };
+}
+
+/** Período do painel: o informado na URL ou, por padrão, o mês atual completo. */
+export function readMonthPeriod(params: Record<string, string | string[] | undefined>) {
+  const month = monthRangeIso(todayIso());
+  const from = typeof params.de === "string" && ISO.test(params.de) ? params.de : month.from;
+  const to = typeof params.ate === "string" && ISO.test(params.ate) ? params.ate : month.to;
+  return from <= to ? { from, to } : month;
+}

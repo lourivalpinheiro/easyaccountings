@@ -5,7 +5,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { BlockView } from "@/components/plan/block-view";
 import { ChartDialog } from "@/components/plan/chart-dialog";
-import { ChartSvg } from "@/components/plan/chart-view";
+import { InteractiveChart } from "@/components/interactive-chart";
 import { usePlan } from "@/components/plan/plan-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,7 +52,7 @@ function ChartNodeView({ node, updateAttributes, deleteNode, selected, editor }:
         </>
       }
     >
-      <ChartSvg data={chartData(spec, dataset, inputs)} type={spec.chartType} title={spec.title} />
+      <InteractiveChart data={chartData(spec, dataset, inputs)} type={spec.chartType} title={spec.title} />
       {editing && (
         <ChartDialog
           open

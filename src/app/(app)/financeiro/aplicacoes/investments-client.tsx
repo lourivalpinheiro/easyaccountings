@@ -1,6 +1,6 @@
 "use client";
 
-import { LineChart, Pencil, PiggyBank, Plus, Trash2 } from "lucide-react";
+import { ChartArea, LineChart, Pencil, PiggyBank, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { BulkDeleteBar } from "@/components/bulk-delete-bar";
 import { ActiveFilters, ColumnHead, useTableControls } from "@/components/column-head";
@@ -23,7 +23,9 @@ import { todayIso } from "@/lib/period";
 import type { Column } from "@/lib/table-controls";
 import { toastResult } from "@/lib/toast-result";
 import { cn } from "@/lib/utils";
+import type { InvestmentMovement } from "@/lib/investment-series";
 import { deleteInvestments, deleteValuation, saveInvestment, saveValuation } from "./actions";
+import { InvestmentDetail } from "./investment-detail";
 
 type Investment = {
   id: string;
@@ -63,7 +65,18 @@ const COLUMNS: Column<Investment>[] = [
   },
 ];
 
-export function InvestmentsClient({ investments, valuations }: { investments: Investment[]; valuations: Valuation[] }) {
+export function InvestmentsClient({
+  investments,
+  valuations,
+  movements,
+  today,
+}: {
+  investments: Investment[];
+  valuations: Valuation[];
+  movements: (InvestmentMovement & { investmentId: string })[];
+  today: string;
+}) {
+  const [viewing, setViewing] = useState<Investment | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [valuing, setValuing] = useState<Investment | null>(null);
   const [valuation, setValuation] = useState({ date: todayIso(), cents: 0 });
@@ -134,7 +147,7 @@ export function InvestmentsClient({ investments, valuations }: { investments: In
                 <ColumnHead controls={table.controls} id="invested" className="hidden text-right sm:table-cell" />
                 <ColumnHead controls={table.controls} id="balance" className="text-right" />
                 <ColumnHead controls={table.controls} id="active" className="hidden md:table-cell" />
-                <TableHead className="w-28 text-right">Ações</TableHead>
+                <TableHead className="w-36 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -162,7 +175,9 @@ export function InvestmentsClient({ investments, valuations }: { investments: In
                     />
                   </TableCell>
                   <TableCell className="font-medium">
-                    {i.name}
+                    <button type="button" className="text-left hover:text-primary hover:underline" onClick={() => setViewing(i)} title="Ver evolução">
+                      {i.name}
+                    </button>
                     <div className="text-xs font-normal text-muted-foreground md:hidden">{INVESTMENT_KIND_LABELS[i.kind]}</div>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">{INVESTMENT_KIND_LABELS[i.kind]}</TableCell>
@@ -178,6 +193,9 @@ export function InvestmentsClient({ investments, valuations }: { investments: In
                     <Badge variant={i.active ? "outline" : "secondary"}>{i.active ? "Ativa" : "Encerrada"}</Badge>
                   </TableCell>
                   <TableCell className="text-right whitespace-nowrap">
+                    <Button variant="ghost" size="icon" aria-label="Ver evolução" title="Ver evolução e rendimentos" onClick={() => setViewing(i)}>
+                      <ChartArea />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -224,6 +242,21 @@ export function InvestmentsClient({ investments, valuations }: { investments: In
           <TablePagination {...pagination} />
         </CardContent>
       </Card>
+
+      {viewing && (
+        <InvestmentDetail
+          investment={viewing}
+          movements={movements.filter((m) => m.investmentId === viewing.id)}
+          valuations={valuations.filter((v) => v.investmentId === viewing.id)}
+          today={today}
+          onClose={() => setViewing(null)}
+          onUpdateBalance={() => {
+            setViewing(null);
+            setValuing(viewing);
+            setValuation({ date: today, cents: viewing.balance });
+          }}
+        />
+      )}
 
       <Dialog open={draft !== null} onOpenChange={(o) => !o && setDraft(null)}>
         <DialogContent>

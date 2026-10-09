@@ -5,7 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import { ConfirmAction } from "@/components/confirm-button";
 import { MoneyInput } from "@/components/money-input";
 import { BlockView } from "@/components/plan/block-view";
-import { ChartSvg } from "@/components/plan/chart-view";
+import { InteractiveChart } from "@/components/interactive-chart";
 import { usePlan } from "@/components/plan/plan-context";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -636,7 +636,7 @@ export function ScenariosPanel({ plan }: { plan: WorkspacePlan }) {
       </div>
       {plan.scenarios.length > 0 && (
         <div className="rounded-md border p-3">
-          <ChartSvg
+          <InteractiveChart
             data={chartData({ ...DEFAULT_CHART, source: "cenarios", metric: "total" }, dataset, inputs)}
             type="linhas"
             height={240}

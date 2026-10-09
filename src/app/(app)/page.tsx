@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { NoCompany } from "@/components/page-header";
 import { getPageContext } from "@/lib/page-context";
+import { readMonthPeriod } from "@/lib/period";
 import { CompanyDashboard, type Shortcut } from "@/reports/dashboard";
 
 const ACCOUNTING: Shortcut[] = [
@@ -34,10 +35,16 @@ const FINANCE: Shortcut[] = [
   { title: "Conciliação", href: "/utilitarios/conciliacao", icon: Landmark, text: "Extratos bancários (OFX)" },
 ];
 
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: PageProps<"/">) {
   const { user, company } = await getPageContext();
   if (!company) return <NoCompany isAdmin={user.role === "admin"} />;
   return (
-    <CompanyDashboard company={company} title={`Olá, ${user.name.split(" ")[0]}`} accounting={ACCOUNTING} finance={FINANCE} />
+    <CompanyDashboard
+      company={company}
+      title={`Olá, ${user.name.split(" ")[0]}`}
+      period={readMonthPeriod(await searchParams)}
+      accounting={ACCOUNTING}
+      finance={FINANCE}
+    />
   );
 }
