@@ -10,7 +10,7 @@ function formatCompact(cents: number) {
   return `${sign}${Math.round(abs)}`;
 }
 
-/** Calendário de saldo final por dia: real até hoje, projetado nos meses seguintes. */
+/** Calendário de saldo final por dia: real até hoje, previsto pelas movimentações agendadas nos dias seguintes. */
 export function CashCalendarHeatmap({ months }: { months: CalendarMonth[] }) {
   const maxDays = Math.max(...months.map((m) => m.days.length));
   const gridCols = `3rem repeat(${months.length}, minmax(4.25rem, 1fr))`;
@@ -34,7 +34,7 @@ export function CashCalendarHeatmap({ months }: { months: CalendarMonth[] }) {
               return (
                 <div
                   key={`${m.year}-${m.month}-${day}`}
-                  title={`${cell.date}${cell.projected ? " (projetado)" : ""}: ${band.label}`}
+                  title={`${cell.date}${cell.projected ? " (previsto)" : ""}: ${band.label}`}
                   className={cn(
                     "border-b border-l px-2 py-1 text-right tabular-nums text-white/90",
                     band.bar,

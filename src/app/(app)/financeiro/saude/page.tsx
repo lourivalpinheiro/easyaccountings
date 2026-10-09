@@ -28,7 +28,7 @@ export default async function CashHealthPage({ searchParams }: PageProps<"/finan
 
   return (
     <>
-      <PageHeader title="Saúde de caixa" description="Saldo final de cada dia: real até hoje, projetado nos meses seguintes." />
+      <PageHeader title="Saúde de caixa" description="Saldo final de cada dia: real até hoje, previsto pelas movimentações agendadas nos dias seguintes." />
       <HealthClient totalMonths={totalMonths} currentBalance={currentBalance} worst={worst} months={months} />
     </>
   );

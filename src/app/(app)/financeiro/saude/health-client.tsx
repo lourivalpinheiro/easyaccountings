@@ -62,7 +62,7 @@ export function HealthClient({
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
           <div>
             <CardTitle>Calendário de saldo</CardTitle>
-            <CardDescription>Real até hoje; projetado (mais claro) nos dias seguintes.</CardDescription>
+            <CardDescription>Real até hoje; previsto (mais claro) nos dias seguintes, com base nas movimentações agendadas e recorrentes.</CardDescription>
           </div>
           <div className="flex items-end gap-2">
             <div className="grid gap-2">

@@ -78,6 +78,13 @@
       "when": 1791505969923,
       "tag": "0010_empresa_fixada",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791556185451,
+      "tag": "0011_fluxo_tipos_frequencia",
+      "breakpoints": true
     }
   ]
 }

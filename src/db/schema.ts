@@ -26,7 +26,18 @@ export const accountGroup = pgEnum("account_group", [
   "apuracao",
 ]);
 export const personType = pgEnum("person_type", ["PF", "PJ", "INF"]);
-export const cashFlowType = pgEnum("cash_flow_type", ["entrada", "saida"]);
+export const cashFlowType = pgEnum("cash_flow_type", ["entrada", "saida", "economia", "cartao_credito"]);
+export const cashFlowFrequency = pgEnum("cash_flow_frequency", [
+  "unica",
+  "diaria",
+  "semanal",
+  "quinzenal",
+  "mensal",
+  "bimestral",
+  "trimestral",
+  "semestral",
+  "anual",
+]);
 export const nature = pgEnum("nature", ["D", "C"]);
 export const entrySide = pgEnum("entry_side", ["D", "C"]);
 export const reconciliationModule = pgEnum("reconciliation_module", ["contabil", "financeiro", "ambos"]);
@@ -272,10 +283,16 @@ export const cashFlowEntries = pgTable(
     description: text("description").notNull(),
     category: text("category"),
     amount: numeric("amount", { precision: 18, scale: 2 }).notNull(),
+    frequency: cashFlowFrequency("frequency").notNull().default("unica"),
+    /** Ocorrências geradas por um mesmo lançamento recorrente compartilham a série. */
+    seriesId: uuid("series_id"),
     createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
     ...timestamps,
   },
-  (t) => [index("cash_flow_entries_company_date").on(t.companyId, t.date)],
+  (t) => [
+    index("cash_flow_entries_company_date").on(t.companyId, t.date),
+    index("cash_flow_entries_series").on(t.seriesId),
+  ],
 ).enableRLS();
 
 /** Comprovantes anexados a um lançamento contábil ou a uma movimentação do fluxo de caixa. */

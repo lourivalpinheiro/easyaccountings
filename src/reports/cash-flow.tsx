@@ -8,6 +8,7 @@ import { ReportFilters } from "@/components/report-filters";
 import { db } from "@/db";
 import { cashFlowEntries } from "@/db/schema";
 import { formatDate, formatReportMoney, toCents } from "@/lib/accounting";
+import { FLOW_TYPE_LABELS, isInflow, signedCents } from "@/lib/cash-flow-types";
 import { getCashBalanceBefore } from "@/lib/data/cash-flow";
 import { groupByDate } from "@/lib/data/reports";
 import { readPeriod } from "@/lib/period";
@@ -39,14 +40,14 @@ export async function CashFlowReport({ company, params }: { company: Company; pa
   const withBalance = [];
   for (const r of rows) {
     const cents = toCents(r.amount);
-    running += r.type === "entrada" ? cents : -cents;
+    running += signedCents(r.type, cents);
     withBalance.push({ ...r, cents, balance: running });
   }
   const days = groupByDate(withBalance).map(([date, lines]) => ({
     date,
     lines,
-    inflow: lines.filter((l) => l.type === "entrada").reduce((s, l) => s + l.cents, 0),
-    outflow: lines.filter((l) => l.type === "saida").reduce((s, l) => s + l.cents, 0),
+    inflow: lines.filter((l) => isInflow(l.type)).reduce((s, l) => s + l.cents, 0),
+    outflow: lines.filter((l) => !isInflow(l.type)).reduce((s, l) => s + l.cents, 0),
     balance: lines[lines.length - 1].balance,
   }));
   const inflow = days.reduce((s, d) => s + d.inflow, 0);
@@ -57,7 +58,7 @@ export async function CashFlowReport({ company, params }: { company: Company; pa
     for (const l of d.lines) {
       const key = l.category ?? "Sem categoria";
       const acc = byCategory.get(key) ?? { inflow: 0, outflow: 0 };
-      if (l.type === "entrada") acc.inflow += l.cents;
+      if (isInflow(l.type)) acc.inflow += l.cents;
       else acc.outflow += l.cents;
       byCategory.set(key, acc);
     }
@@ -94,10 +95,15 @@ export async function CashFlowReport({ company, params }: { company: Company; pa
                     {day.lines.map((l, i) => (
                       <tr key={l.id} className={i === 0 ? "border-t-2 border-primary/30" : "border-t border-border/40"}>
                         <td>{i === 0 ? formatDate(l.date) : ""}</td>
-                        <td>{l.description}</td>
+                        <td>
+                          {l.description}
+                          {l.type !== "entrada" && l.type !== "saida" && (
+                            <span className="text-muted-foreground"> ({FLOW_TYPE_LABELS[l.type].singular})</span>
+                          )}
+                        </td>
                         <td className="text-muted-foreground">{l.category ?? ""}</td>
-                        <td className={num}>{l.type === "entrada" ? formatReportMoney(l.cents) : ""}</td>
-                        <td className={num}>{l.type === "saida" ? formatReportMoney(l.cents) : ""}</td>
+                        <td className={num}>{isInflow(l.type) ? formatReportMoney(l.cents) : ""}</td>
+                        <td className={num}>{!isInflow(l.type) ? formatReportMoney(l.cents) : ""}</td>
                         <td className={cn(num, l.balance < 0 && "text-destructive")}>{balance(l.balance)}</td>
                       </tr>
                     ))}

@@ -4,6 +4,7 @@ import { NoCompany, PageHeader } from "@/components/page-header";
 import { db } from "@/db";
 import { cashFlowEntries } from "@/db/schema";
 import { toCents } from "@/lib/accounting";
+import { isFlowType } from "@/lib/cash-flow-types";
 import { getAttachmentsByCashFlowEntry } from "@/lib/data/attachments";
 import { getCashBalanceBefore, getCashTotals } from "@/lib/data/cash-flow";
 import { getPageContext } from "@/lib/page-context";
@@ -20,7 +21,7 @@ export default async function CashFlowPage({ searchParams }: PageProps<"/finance
   const pageSize = [10, 25, 50, 100].includes(Number(params.por)) ? Number(params.por) : 25;
   const page = Math.max(1, Math.floor(Number(params.pagina)) || 1);
   const q = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
-  const type = params.tipo === "entrada" || params.tipo === "saida" ? params.tipo : undefined;
+  const type = isFlowType(params.tipo) ? params.tipo : undefined;
 
   const filters: SQL[] = [
     eq(cashFlowEntries.companyId, company.id),
@@ -55,12 +56,12 @@ export default async function CashFlowPage({ searchParams }: PageProps<"/finance
 
   return (
     <>
-      <PageHeader title="Fluxo de caixa" description="Registro das entradas e saídas de dinheiro da empresa." />
+      <PageHeader title="Fluxo de caixa" description="Registro das entradas, saídas, economias e gastos no cartão de crédito." />
       <CashFlowClient
         period={period}
         filters={{ q, type: type ?? "" }}
         paging={{ page, pageSize, total }}
-        summary={{ previous, inflow: totals.inflow, outflow: totals.outflow }}
+        summary={{ previous, ...totals }}
         categories={categories.map((c) => c.category!)}
         entries={rows.map((r) => ({
           id: r.id,
@@ -69,6 +70,8 @@ export default async function CashFlowPage({ searchParams }: PageProps<"/finance
           description: r.description,
           category: r.category,
           cents: toCents(r.amount),
+          frequency: r.frequency,
+          seriesId: r.seriesId,
           attachments: attachmentsByEntry.get(r.id) ?? [],
         }))}
       />

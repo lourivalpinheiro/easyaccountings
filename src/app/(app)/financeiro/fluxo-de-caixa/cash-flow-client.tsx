@@ -1,6 +1,19 @@
 "use client";
 
-import { ArrowDownCircle, ArrowUpCircle, FileText, Pencil, Plus, Search, Trash2, Wallet } from "lucide-react";
+import {
+  ArrowDownCircle,
+  ArrowUpCircle,
+  CalendarX,
+  CreditCard,
+  FileText,
+  Pencil,
+  PiggyBank,
+  Plus,
+  Repeat,
+  Search,
+  Trash2,
+  Wallet,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -19,12 +32,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatDate, formatMoney } from "@/lib/accounting";
+import {
+  FLOW_TYPE_LABELS,
+  FLOW_TYPES,
+  FREQUENCIES,
+  FREQUENCY_LABELS,
+  isInflow,
+  MAX_OCCURRENCES,
+  type FlowType,
+  type Frequency,
+} from "@/lib/cash-flow-types";
 import { todayIso } from "@/lib/period";
 import { toastResult } from "@/lib/toast-result";
 import { cn } from "@/lib/utils";
-import { deleteCashFlowEntries, deleteCashFlowEntry, saveCashFlowEntry } from "../actions";
+import { deleteCashFlowEntries, deleteCashFlowEntry, deleteCashFlowSeriesFrom, saveCashFlowEntry } from "../actions";
 
-type FlowType = "entrada" | "saida";
 type Attachment = { id: string; fileName: string; mimeType: string; sizeBytes: number; isPublic: boolean };
 type Entry = {
   id: string;
@@ -33,9 +55,47 @@ type Entry = {
   description: string;
   category: string | null;
   cents: number;
+  frequency: Frequency;
+  seriesId: string | null;
   attachments: Attachment[];
 };
-type Draft = { id?: string; date: string; type: FlowType; description: string; category: string; cents: number };
+type Draft = {
+  id?: string;
+  date: string;
+  type: FlowType;
+  description: string;
+  category: string;
+  cents: number;
+  frequency: Frequency;
+  occurrences: number;
+};
+
+const TYPE_STYLE: Record<FlowType, { icon: typeof Wallet; tone: string; on: string; button: string }> = {
+  entrada: {
+    icon: ArrowUpCircle,
+    tone: "text-emerald-600 dark:text-emerald-400",
+    on: "data-[state=on]:text-emerald-600",
+    button: "bg-emerald-600 text-white hover:bg-emerald-600/90",
+  },
+  saida: {
+    icon: ArrowDownCircle,
+    tone: "text-destructive",
+    on: "data-[state=on]:text-destructive",
+    button: "bg-destructive text-white hover:bg-destructive/90",
+  },
+  economia: {
+    icon: PiggyBank,
+    tone: "text-sky-600 dark:text-sky-400",
+    on: "data-[state=on]:text-sky-600",
+    button: "bg-sky-600 text-white hover:bg-sky-600/90",
+  },
+  cartao_credito: {
+    icon: CreditCard,
+    tone: "text-violet-600 dark:text-violet-400",
+    on: "data-[state=on]:text-violet-600",
+    button: "bg-violet-600 text-white hover:bg-violet-600/90",
+  },
+};
 
 const ALL = "todos";
 
@@ -50,7 +110,7 @@ export function CashFlowClient({
   period: { from: string; to: string };
   filters: { q: string; type: string };
   paging: { page: number; pageSize: number; total: number };
-  summary: { previous: number; inflow: number; outflow: number };
+  summary: { previous: number; inflow: number; outflow: number; byType: Record<FlowType, number> };
   categories: string[];
   entries: Entry[];
 }) {
@@ -90,7 +150,7 @@ export function CashFlowClient({
   };
 
   const open = (type: FlowType) =>
-    setDraft({ date: todayIso(), type, description: "", category: "", cents: 0 });
+    setDraft({ date: todayIso(), type, description: "", category: "", cents: 0, frequency: "unica", occurrences: 12 });
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -98,22 +158,31 @@ export function CashFlowClient({
     startTransition(async () => {
       const ok = toastResult(
         await saveCashFlowEntry(draft),
-        draft.id ? "Registro atualizado." : draft.type === "entrada" ? "Entrada registrada." : "Saída registrada.",
+        draft.id
+          ? "Registro atualizado."
+          : draft.frequency !== "unica"
+            ? `${draft.occurrences} ocorrências registradas.`
+            : "Movimentação registrada.",
       );
       if (ok) setDraft(null);
     });
   }
 
   const cards = [
-    { label: "Saldo anterior", value: summary.previous, icon: Wallet, signed: true },
-    { label: "Entradas", value: summary.inflow, icon: ArrowUpCircle, tone: "text-emerald-600 dark:text-emerald-400" },
-    { label: "Saídas", value: summary.outflow, icon: ArrowDownCircle, tone: "text-destructive" },
-    { label: "Saldo final", value: final, icon: Wallet, signed: true },
+    { label: "Saldo anterior", value: summary.previous, icon: Wallet, signed: true, tone: undefined as string | undefined },
+    ...FLOW_TYPES.map((t) => ({
+      label: FLOW_TYPE_LABELS[t].plural,
+      value: summary.byType[t],
+      icon: TYPE_STYLE[t].icon,
+      tone: TYPE_STYLE[t].tone,
+      signed: false,
+    })),
+    { label: "Saldo final", value: final, icon: Wallet, signed: true, tone: undefined },
   ];
 
   return (
     <div className="grid gap-4 sm:gap-6">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {cards.map((c) => (
           <Card key={c.label} className="gap-1 py-3 sm:py-4">
             <CardHeader className="flex flex-row items-center justify-between px-3 sm:px-4">
@@ -137,12 +206,11 @@ export function CashFlowClient({
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-        <Button onClick={() => open("entrada")} className="bg-emerald-600 text-white hover:bg-emerald-600/90">
-          <Plus /> Nova entrada
-        </Button>
-        <Button onClick={() => open("saida")} variant="destructive">
-          <Plus /> Nova saída
-        </Button>
+        {FLOW_TYPES.map((t) => (
+          <Button key={t} onClick={() => open(t)} className={TYPE_STYLE[t].button}>
+            <Plus /> {FLOW_TYPE_LABELS[t].singular}
+          </Button>
+        ))}
         <Button variant="outline" className="col-span-2 sm:ml-auto" asChild>
           <Link href={`/financeiro/relatorio?de=${period.from}&ate=${period.to}`}>
             <FileText /> Emitir relatório
@@ -162,13 +230,16 @@ export function CashFlowClient({
               onKeyDown={(e) => e.key === "Enter" && go()}
             />
             <Select value={type} onValueChange={setType}>
-              <SelectTrigger className="col-span-2 w-full sm:w-36" aria-label="Tipo">
+              <SelectTrigger className="col-span-2 w-full sm:w-44" aria-label="Tipo">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper">
                 <SelectItem value={ALL}>Todos</SelectItem>
-                <SelectItem value="entrada">Entradas</SelectItem>
-                <SelectItem value="saida">Saídas</SelectItem>
+                {FLOW_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {FLOW_TYPE_LABELS[t].plural}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Input type="date" className="sm:w-40" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="De" />
@@ -198,7 +269,7 @@ export function CashFlowClient({
                 <TableHead>Descrição</TableHead>
                 <TableHead className="hidden md:table-cell">Categoria</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="w-24 text-right">Ações</TableHead>
+                <TableHead className="w-28 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -216,24 +287,33 @@ export function CashFlowClient({
                   </TableCell>
                   <TableCell className="tabular-nums">{formatDate(e.date)}</TableCell>
                   <TableCell className="max-w-40 sm:max-w-none">
-                    <div className="truncate">{e.description}</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate">{e.description}</span>
+                      {e.seriesId && (
+                        <Repeat
+                          className="size-3.5 shrink-0 text-muted-foreground"
+                          aria-label={`Recorrente: ${FREQUENCY_LABELS[e.frequency]}`}
+                        />
+                      )}
+                    </div>
+                    <div className={cn("text-xs", TYPE_STYLE[e.type].tone)}>{FLOW_TYPE_LABELS[e.type].singular}</div>
                     {e.category && <div className="truncate text-xs text-muted-foreground md:hidden">{e.category}</div>}
                   </TableCell>
                   <TableCell className="hidden md:table-cell">{e.category ?? <span className="text-muted-foreground">—</span>}</TableCell>
                   <TableCell
                     className={cn(
                       "text-right font-medium whitespace-nowrap tabular-nums",
-                      e.type === "entrada" ? "text-emerald-600 dark:text-emerald-400" : "text-destructive",
+                      TYPE_STYLE[e.type].tone,
                     )}
                   >
-                    {e.type === "entrada" ? "+" : "-"} {formatMoney(e.cents)}
+                    {isInflow(e.type) ? "+" : "-"} {formatMoney(e.cents)}
                   </TableCell>
                   <TableCell className="text-right whitespace-nowrap">
                     <Button
                       variant="ghost"
                       size="icon"
                       aria-label="Editar"
-                      onClick={() => setDraft({ ...e, category: e.category ?? "" })}
+                      onClick={() => setDraft({ ...e, category: e.category ?? "", occurrences: 1 })}
                     >
                       <Pencil />
                     </Button>
@@ -246,6 +326,17 @@ export function CashFlowClient({
                         <Trash2 className="text-destructive" />
                       </Button>
                     </ConfirmAction>
+                    {e.seriesId && (
+                      <ConfirmAction
+                        title="Excluir esta e as próximas?"
+                        description={`Exclui "${e.description}" de ${formatDate(e.date)} e as ocorrências seguintes da recorrência (${FREQUENCY_LABELS[e.frequency].toLowerCase()}).`}
+                        onConfirm={async () => toastResult(await deleteCashFlowSeriesFrom(e.id), "Recorrência excluída.")}
+                      >
+                        <Button variant="ghost" size="icon" aria-label="Excluir esta e as próximas">
+                          <CalendarX className="text-destructive" />
+                        </Button>
+                      </ConfirmAction>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -266,21 +357,23 @@ export function CashFlowClient({
           {draft && (
             <form onSubmit={submit} className="grid gap-4">
               <DialogHeader>
-                <DialogTitle>{draft.id ? "Editar movimentação" : draft.type === "entrada" ? "Nova entrada" : "Nova saída"}</DialogTitle>
+                <DialogTitle>{draft.id ? "Editar movimentação" : "Nova movimentação"}</DialogTitle>
               </DialogHeader>
               <ToggleGroup
                 type="single"
                 variant="outline"
                 value={draft.type}
                 onValueChange={(v) => v && setDraft({ ...draft, type: v as FlowType })}
-                className="w-full"
+                className="grid w-full grid-cols-2"
               >
-                <ToggleGroupItem value="entrada" className="flex-1 data-[state=on]:text-emerald-600">
-                  <ArrowUpCircle /> Entrada
-                </ToggleGroupItem>
-                <ToggleGroupItem value="saida" className="flex-1 data-[state=on]:text-destructive">
-                  <ArrowDownCircle /> Saída
-                </ToggleGroupItem>
+                {FLOW_TYPES.map((t) => {
+                  const Icon = TYPE_STYLE[t].icon;
+                  return (
+                    <ToggleGroupItem key={t} value={t} className={cn("flex-1", TYPE_STYLE[t].on)}>
+                      <Icon /> {FLOW_TYPE_LABELS[t].singular}
+                    </ToggleGroupItem>
+                  );
+                })}
               </ToggleGroup>
               <div className="grid grid-cols-2 gap-3">
                 <div className="grid gap-2">
@@ -318,6 +411,51 @@ export function CashFlowClient({
                   ))}
                 </datalist>
               </div>
+              {draft.id ? (
+                draft.frequency !== "unica" && (
+                  <p className="text-xs text-muted-foreground">
+                    Ocorrência de uma recorrência {FREQUENCY_LABELS[draft.frequency].toLowerCase()}. A edição altera apenas
+                    esta data.
+                  </p>
+                )
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="cf-freq">Frequência</Label>
+                    <Select value={draft.frequency} onValueChange={(v) => setDraft({ ...draft, frequency: v as Frequency })}>
+                      <SelectTrigger id="cf-freq" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent position="popper">
+                        {FREQUENCIES.map((f) => (
+                          <SelectItem key={f} value={f}>
+                            {FREQUENCY_LABELS[f]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {draft.frequency !== "unica" && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="cf-occ">Repetições</Label>
+                      <Input
+                        id="cf-occ"
+                        type="number"
+                        min={2}
+                        max={MAX_OCCURRENCES}
+                        value={draft.occurrences || ""}
+                        onChange={(e) => setDraft({ ...draft, occurrences: Math.floor(Number(e.target.value)) || 0 })}
+                        required
+                      />
+                    </div>
+                  )}
+                  {draft.frequency !== "unica" && draft.occurrences >= 2 && (
+                    <p className="col-span-2 text-xs text-muted-foreground">
+                      Serão criadas {draft.occurrences} movimentações a partir de {formatDate(draft.date)}.
+                    </p>
+                  )}
+                </div>
+              )}
               <AttachmentsPanel
                 entryType="movimentacao"
                 entryId={draft.id}
@@ -327,7 +465,16 @@ export function CashFlowClient({
                 <Button type="button" variant="outline" onClick={() => setDraft(null)}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={pending || draft.cents <= 0}>
+                <Button
+                  type="submit"
+                  disabled={
+                    pending ||
+                    draft.cents <= 0 ||
+                    (!draft.id &&
+                      draft.frequency !== "unica" &&
+                      (draft.occurrences < 2 || draft.occurrences > MAX_OCCURRENCES))
+                  }
+                >
                   Salvar
                 </Button>
               </DialogFooter>
