@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Filter, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { MoneyInput } from "@/components/money-input";
+import { PeriodPresets } from "@/components/period-presets";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -148,6 +149,9 @@ function FilterEditor({
     >
       <div className="text-sm font-medium">Filtrar {spec.label.toLowerCase()}</div>
       {type === "text" && <Input autoFocus placeholder="Contém..." value={q} onChange={(e) => setQ(e.target.value)} />}
+      {type === "date" && (
+        <PeriodPresets size="xs" value={{ from: min, to: max }} onSelect={(p) => onApply({ kind: "range", min: p.from, max: p.to })} />
+      )}
       {(type === "number" || type === "money" || type === "date") && (
         <div className="grid grid-cols-2 gap-2">
           {(["De", "Até"] as const).map((label, i) => {

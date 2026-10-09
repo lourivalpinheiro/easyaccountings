@@ -4,6 +4,7 @@ import { Printer, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { PeriodPresets } from "@/components/period-presets";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,10 +28,10 @@ export function ReportFilters({
   const [to, setTo] = useState(period.to);
   const [zero, setZero] = useState(params.get("zeradas") === "1");
 
-  const apply = () => {
+  const apply = (override?: { from: string; to: string }) => {
     const q = new URLSearchParams(params);
-    q.set("de", from);
-    q.set("ate", to);
+    q.set("de", override?.from ?? from);
+    q.set("ate", override?.to ?? to);
     if (showZeroOption) {
       if (zero) q.set("zeradas", "1");
       else q.delete("zeradas");
@@ -44,6 +45,15 @@ export function ReportFilters({
 
   return (
     <div className="no-print mb-4 grid grid-cols-2 items-end gap-3 rounded-lg border bg-card p-3 sm:flex sm:flex-wrap">
+      <PeriodPresets
+        className="col-span-2 sm:basis-full"
+        value={period}
+        onSelect={(p) => {
+          setFrom(p.from);
+          setTo(p.to);
+          apply(p);
+        }}
+      />
       <div className="grid gap-1.5">
         <Label htmlFor="f-from">De</Label>
         <Input id="f-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full sm:w-40" />
@@ -59,7 +69,7 @@ export function ReportFilters({
           Exibir contas sem saldo
         </Label>
       )}
-      <Button onClick={apply}>
+      <Button onClick={() => apply()}>
         <Search /> Emitir
       </Button>
       <Button variant="outline" onClick={() => window.print()} className="sm:ml-auto">

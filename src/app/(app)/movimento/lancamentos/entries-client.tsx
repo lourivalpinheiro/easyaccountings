@@ -21,6 +21,7 @@ import { BulkDeleteBar } from "@/components/bulk-delete-bar";
 import { ActiveFilters, ColumnHead, useUrlTableControls } from "@/components/column-head";
 import { ConfirmAction } from "@/components/confirm-button";
 import { MoneyInput } from "@/components/money-input";
+import { PeriodPresets } from "@/components/period-presets";
 import { Badge } from "@/components/ui/badge";
 import { TablePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
@@ -492,6 +493,15 @@ export function EntriesClient({
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && go({ de: from, ate: to, q: filter.trim(), pagina: 1 })}
+            />
+            <PeriodPresets
+              className="col-span-2"
+              value={period}
+              onSelect={(p) => {
+                setFrom(p.from);
+                setTo(p.to);
+                go({ de: p.from, ate: p.to, q: filter.trim(), pagina: 1 });
+              }}
             />
             <Input type="date" className="sm:w-40" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="De" />
             <Input type="date" className="sm:w-40" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Até" />

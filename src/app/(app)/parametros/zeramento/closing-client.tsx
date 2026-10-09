@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { AccountPicker, type PickerAccount } from "@/components/account-picker";
 import { ConfirmAction } from "@/components/confirm-button";
+import { PeriodPresets } from "@/components/period-presets";
 import { Badge } from "@/components/ui/badge";
 import { TablePagination, usePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
@@ -111,6 +112,15 @@ export function ClosingClient({
               <Label htmlFor="to">Até</Label>
               <Input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
             </div>
+            <PeriodPresets
+              className="col-span-2"
+              value={period}
+              onSelect={(p) => {
+                setFrom(p.from);
+                setTo(p.to);
+                router.push(`?de=${p.from}&ate=${p.to}`);
+              }}
+            />
             <Button variant="outline" className="col-span-2 sm:col-span-1" onClick={() => router.push(`?de=${from}&ate=${to}`)}>
               <Search /> Visualizar saldos
             </Button>
@@ -172,6 +182,14 @@ export function ClosingClient({
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
           <CardTitle>Zeramentos realizados</CardTitle>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <PeriodPresets
+              className="col-span-2"
+              value={{ from: batchFrom, to: batchTo }}
+              onSelect={(p) => {
+                setBatchFrom(p.from);
+                setBatchTo(p.to);
+              }}
+            />
             <Input type="date" className="sm:w-40" value={batchFrom} onChange={(e) => setBatchFrom(e.target.value)} aria-label="De" placeholder="De" />
             <Input type="date" className="sm:w-40" value={batchTo} onChange={(e) => setBatchTo(e.target.value)} aria-label="Até" placeholder="Até" />
           </div>

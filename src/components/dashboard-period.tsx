@@ -6,19 +6,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { monthRangeIso, todayIso } from "@/lib/period";
+import { PeriodPresets } from "@/components/period-presets";
 import { cn } from "@/lib/utils";
-
-function presets() {
-  const today = todayIso();
-  const [y, m] = today.split("-").map(Number);
-  const prev = monthRangeIso(m === 1 ? `${y - 1}-12-01` : `${y}-${String(m - 1).padStart(2, "0")}-01`);
-  return [
-    { label: "Mês atual", ...monthRangeIso(today) },
-    { label: "Mês anterior", ...prev },
-    { label: "Ano atual", from: `${y}-01-01`, to: `${y}-12-31` },
-  ];
-}
 
 /** Período das informações do painel (padrão: mês atual completo). */
 export function DashboardPeriod({ period }: { period: { from: string; to: string } }) {
@@ -30,22 +19,14 @@ export function DashboardPeriod({ period }: { period: { from: string; to: string
 
   return (
     <div className="no-print flex flex-wrap items-end gap-2 rounded-lg border bg-card p-3">
-      <div className="flex flex-wrap gap-1">
-        {presets().map((p) => (
-          <Button
-            key={p.label}
-            size="sm"
-            variant={p.from === period.from && p.to === period.to ? "default" : "outline"}
-            onClick={() => {
-              setFrom(p.from);
-              setTo(p.to);
-              go(p);
-            }}
-          >
-            {p.label}
-          </Button>
-        ))}
-      </div>
+      <PeriodPresets
+        value={period}
+        onSelect={(p) => {
+          setFrom(p.from);
+          setTo(p.to);
+          go(p);
+        }}
+      />
       <div className="grid gap-1">
         <Label htmlFor="dash-from" className="text-xs">
           De
