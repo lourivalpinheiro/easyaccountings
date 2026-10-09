@@ -47,11 +47,14 @@ export function InteractiveChart({
   type,
   title,
   height = 300,
+  animate = true,
 }: {
   data: ChartData;
   type: ChartType;
   title?: string;
   height?: number;
+  /** Relatórios desligam a animação: o gráfico aparece pronto (inclusive para imprimir). */
+  animate?: boolean;
 }) {
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const toggle = (key: string) =>
@@ -107,6 +110,21 @@ export function InteractiveChart({
     />
   );
   const visibleSeries = legend.filter((l) => !hidden.has(l.key));
+  const longLabels = data.labels.some((l) => l.length > 10);
+  const xAxis = (
+    <XAxis
+      dataKey="label"
+      tickLine={false}
+      axisLine={false}
+      tickMargin={8}
+      interval={longLabels ? 0 : "preserveStartEnd"}
+      minTickGap={8}
+      angle={longLabels ? -30 : 0}
+      textAnchor={longLabels ? "end" : "middle"}
+      height={longLabels ? Math.round(18 + Math.min(24, Math.max(...data.labels.map((l) => l.length))) * 3.6) : 30}
+      tickFormatter={(v: string) => truncate(v, longLabels ? 24 : 12)}
+    />
+  );
 
   let chart: React.ReactElement;
   if (isPie) {
@@ -123,7 +141,7 @@ export function InteractiveChart({
           outerRadius="85%"
           strokeWidth={2}
           stroke="var(--card)"
-          isAnimationActive
+          isAnimationActive={animate}
         >
           {slices.map((r) => (
             <Cell key={r.key} fill={r.fill} />
@@ -144,31 +162,32 @@ export function InteractiveChart({
         <YAxis type="category" dataKey="label" width={130} tickLine={false} axisLine={false} tickFormatter={(v: string) => truncate(v, 20)} />
         {tooltip}
         {visibleSeries.map((s) => (
-          <Bar key={s.key} dataKey={s.key} fill={`var(--color-${s.key})`} radius={3} />
+          <Bar isAnimationActive={animate} key={s.key} dataKey={s.key} fill={`var(--color-${s.key})`} radius={3} />
         ))}
       </BarChart>
     );
   } else if (type === "linhas") {
     chart = (
-      <LineChart data={rows} margin={{ left: 4, right: 12, top: 8 }}>
+      <LineChart data={rows} margin={{ left: longLabels ? 48 : 4, right: 20, top: 8, bottom: 4 }}>
         <CartesianGrid vertical={false} />
-        <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={16} />
+        {xAxis}
         <YAxis tickFormatter={tick} tickLine={false} axisLine={false} width={64} />
         {tooltip}
         {visibleSeries.map((s) => (
-          <Line key={s.key} dataKey={s.key} stroke={`var(--color-${s.key})`} strokeWidth={2} type="monotone" dot={rows.length <= 24} />
+          <Line isAnimationActive={animate} key={s.key} dataKey={s.key} stroke={`var(--color-${s.key})`} strokeWidth={2} type="monotone" dot={rows.length <= 24} />
         ))}
       </LineChart>
     );
   } else if (type === "area") {
     chart = (
-      <AreaChart data={rows} margin={{ left: 4, right: 12, top: 8 }}>
+      <AreaChart data={rows} margin={{ left: longLabels ? 48 : 4, right: 20, top: 8, bottom: 4 }}>
         <CartesianGrid vertical={false} />
-        <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={16} />
+        {xAxis}
         <YAxis tickFormatter={tick} tickLine={false} axisLine={false} width={64} />
         {tooltip}
         {visibleSeries.map((s) => (
           <Area
+            isAnimationActive={animate}
             key={s.key}
             dataKey={s.key}
             stroke={`var(--color-${s.key})`}
@@ -183,13 +202,14 @@ export function InteractiveChart({
   } else {
     const stacked = type === "barras-empilhadas";
     chart = (
-      <BarChart data={rows} margin={{ left: 4, right: 12, top: 8 }}>
+      <BarChart data={rows} margin={{ left: longLabels ? 48 : 4, right: 20, top: 8, bottom: 4 }}>
         <CartesianGrid vertical={false} />
-        <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={8} tickFormatter={(v: string) => truncate(v, 12)} />
+        {xAxis}
         <YAxis tickFormatter={tick} tickLine={false} axisLine={false} width={64} />
         {tooltip}
         {visibleSeries.map((s, i) => (
           <Bar
+            isAnimationActive={animate}
             key={s.key}
             dataKey={s.key}
             fill={`var(--color-${s.key})`}

@@ -1,9 +1,9 @@
 import type { Company } from "@/lib/company";
 import type { SearchParams } from "@/reports/types";
 import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
-import { InteractiveChart } from "@/components/interactive-chart";
 import { PageHeader } from "@/components/page-header";
 import { EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/report";
+import { ReportChart } from "@/components/report-chart";
 import { ReportFilters } from "@/components/report-filters";
 import { db } from "@/db";
 import { cashFlowEntries, investments, investmentValuations } from "@/db/schema";
@@ -18,10 +18,30 @@ const signed = (cents: number) => (cents < 0 ? `-${formatReportMoney(-cents)}` :
 const pct = (v: number | null) => (v === null ? "-" : `${(v * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`);
 const monthLabel = (iso: string) => `${MONTH_SHORT[Number(iso.slice(5, 7)) - 1]}/${iso.slice(2, 4)}`;
 
-/** Relatório das aplicações: posição no fim do período, movimentações e gráficos. */
+export type InvestmentsReportData = {
+  period: { from: string; to: string };
+  rows: { id: string; name: string; institution: string | null; kindLabel: string; balance: number; capital: number; gain: number }[];
+  total: { balance: number; capital: number; gain: number; contributions: number; withdrawals: number; gainInPeriod: number };
+  evolution: { date: string; capital: number; balance: number; gain: number }[];
+  movements: { date: string; name: string; kind: string; description: string; cents: number }[];
+};
+
+/** Relatório das aplicações: posição no fim do período, gráficos e movimentações. */
 export async function InvestmentsReport({ company, params }: { company: Company; params: SearchParams }) {
   const period = readPeriod(params);
-  const list = await db.select().from(investments).where(eq(investments.companyId, company.id)).orderBy(asc(investments.name));
+  return (
+    <>
+      <PageHeader title="Relatório de aplicações financeiras" />
+      <ReportFilters period={period} />
+      <ReportSheet company={company} title="Aplicações Financeiras" period={period}>
+        <InvestmentsReportBody {...await getInvestmentsReportData(company.id, period)} />
+      </ReportSheet>
+    </>
+  );
+}
+
+async function getInvestmentsReportData(companyId: string, period: { from: string; to: string }): Promise<InvestmentsReportData> {
+  const list = await db.select().from(investments).where(eq(investments.companyId, companyId)).orderBy(asc(investments.name));
   const ids = list.map((i) => i.id);
   const [valuationRows, movementRows] =
     ids.length === 0
@@ -37,7 +57,7 @@ export async function InvestmentsReport({ company, params }: { company: Company;
               description: cashFlowEntries.description,
             })
             .from(cashFlowEntries)
-            .where(and(eq(cashFlowEntries.companyId, company.id), isNotNull(cashFlowEntries.investmentId), inArray(cashFlowEntries.type, ["economia", "entrada"])))
+            .where(and(eq(cashFlowEntries.companyId, companyId), isNotNull(cashFlowEntries.investmentId), inArray(cashFlowEntries.type, ["economia", "entrada"])))
             .orderBy(asc(cashFlowEntries.date)),
         ]);
 
@@ -74,17 +94,16 @@ export async function InvestmentsReport({ company, params }: { company: Company;
   );
 
   // Evolução da carteira no fim de cada mês do período.
-  const ends = monthEnds(period.from, period.to);
-  const evolution = ends.map((date) =>
+  const evolution = monthEnds(period.from, period.to).map((date) =>
     shown.reduce(
       (t, d) => {
         const p = positionAt(date, d.movements, d.valuations);
-        return { capital: t.capital + p.capital, balance: t.balance + p.balance, gain: t.gain + p.gain };
+        return { date, capital: t.capital + p.capital, balance: t.balance + p.balance, gain: t.gain + p.gain };
       },
-      { capital: 0, balance: 0, gain: 0 },
+      { date, capital: 0, balance: 0, gain: 0 },
     ),
   );
-  const movementsInPeriod = shown
+  const movements = shown
     .flatMap((d) => [
       ...d.inPeriod.map((m) => ({ date: m.date, name: d.inv.name, kind: m.kind === "aporte" ? "Aporte" : "Resgate", description: m.description, cents: m.cents })),
       ...d.valuations
@@ -93,173 +112,164 @@ export async function InvestmentsReport({ company, params }: { company: Company;
     ])
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
+  return {
+    period,
+    rows: shown.map((d) => ({ id: d.inv.id, name: d.inv.name, institution: d.inv.institution, kindLabel: INVESTMENT_KIND_LABELS[d.inv.kind], ...d.end })),
+    total,
+    evolution,
+    movements,
+  };
+}
+
+function Stat({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
-    <>
-      <PageHeader title="Relatório de aplicações financeiras" />
-      <ReportFilters period={period} />
-      <ReportSheet company={company} title="Aplicações Financeiras" period={period}>
-        {shown.length === 0 ? (
-          <EmptyReport>Nenhuma aplicação cadastrada.</EmptyReport>
-        ) : (
-          <div className="grid gap-8">
-            <section className="grid grid-cols-2 gap-2 sm:grid-cols-4 print:grid-cols-4">
-              {[
-                { label: "Total aplicado", value: formatReportMoney(total.capital) },
-                { label: "Saldo líquido", value: formatReportMoney(total.balance) },
-                { label: "Total de rendimentos", value: signed(total.gain), tone: total.gain < 0 ? "text-destructive" : undefined },
-                { label: "Rendimentos no período", value: signed(total.gainInPeriod), tone: total.gainInPeriod < 0 ? "text-destructive" : undefined },
-              ].map((c) => (
-                <div key={c.label} className="rounded-md border p-2.5">
-                  <div className="text-xs text-muted-foreground">{c.label}</div>
-                  <div className={cn("font-semibold tabular-nums", c.tone)}>{c.value}</div>
-                </div>
+    <div className="min-w-0 rounded-md border p-2.5">
+      <div className="truncate text-xs text-muted-foreground">{label}</div>
+      <div className={cn("truncate font-semibold tabular-nums", tone)}>{value}</div>
+    </div>
+  );
+}
+
+/** Conteúdo do relatório (sem consultas), separado para poder ser visualizado com quaisquer dados. */
+export function InvestmentsReportBody({ period, rows, total, evolution, movements }: InvestmentsReportData) {
+  if (rows.length === 0) return <EmptyReport>Nenhuma aplicação cadastrada.</EmptyReport>;
+  const labels = evolution.map((e) => monthLabel(e.date));
+  const red = (v: number) => (v < 0 ? "text-destructive" : undefined);
+  return (
+    <div className="grid gap-6">
+      <section className="grid grid-cols-2 gap-2 lg:grid-cols-4 print:grid-cols-4">
+        <Stat label="Total aplicado" value={formatReportMoney(total.capital)} />
+        <Stat label="Saldo líquido" value={formatReportMoney(total.balance)} />
+        <Stat label="Total de rendimentos" value={signed(total.gain)} tone={red(total.gain)} />
+        <Stat label="Rendimentos no período" value={signed(total.gainInPeriod)} tone={red(total.gainInPeriod)} />
+      </section>
+
+      <section className="min-w-0">
+        <h3 className="mb-2 font-semibold uppercase">Posição em {formatDate(period.to)}</h3>
+        <div className="overflow-x-auto">
+          <ReportTable>
+            <thead>
+              <tr>
+                <Th>Aplicação</Th>
+                <Th className="hidden sm:table-cell print:table-cell">Tipo</Th>
+                <Th className={num}>Capital aplicado</Th>
+                <Th className={num}>Saldo líquido</Th>
+                <Th className={num}>Ganho</Th>
+                <Th className={num}>Rentab.</Th>
+                <Th className={cn(num, "hidden md:table-cell print:table-cell")}>% carteira</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((d) => (
+                <tr key={d.id} className="border-b border-border/60">
+                  <td>
+                    {d.name}
+                    {d.institution && <div className="text-xs text-muted-foreground">{d.institution}</div>}
+                  </td>
+                  <td className="hidden sm:table-cell print:table-cell">{d.kindLabel}</td>
+                  <td className={num}>{formatReportMoney(d.capital)}</td>
+                  <td className={num}>{formatReportMoney(d.balance)}</td>
+                  <td className={cn(num, red(d.gain))}>{signed(d.gain)}</td>
+                  <td className={num}>{pct(d.capital > 0 ? d.gain / d.capital : null)}</td>
+                  <td className={cn(num, "hidden md:table-cell print:table-cell")}>{pct(total.balance ? d.balance / total.balance : null)}</td>
+                </tr>
               ))}
-            </section>
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-foreground/70 font-bold">
+                <td>Total</td>
+                <td className="hidden sm:table-cell print:table-cell" />
+                <td className={num}>{formatReportMoney(total.capital)}</td>
+                <td className={num}>{formatReportMoney(total.balance)}</td>
+                <td className={cn(num, red(total.gain))}>{signed(total.gain)}</td>
+                <td className={num}>{pct(total.capital > 0 ? total.gain / total.capital : null)}</td>
+                <td className={cn(num, "hidden md:table-cell print:table-cell")}>{total.balance ? "100%" : "-"}</td>
+              </tr>
+            </tfoot>
+          </ReportTable>
+        </div>
+      </section>
 
-            <section>
-              <h3 className="mb-2 font-semibold uppercase">Posição em {formatDate(period.to)}</h3>
-              <ReportTable>
-                <thead>
-                  <tr>
-                    <Th>Aplicação</Th>
-                    <Th>Tipo</Th>
-                    <Th className={num}>Capital aplicado</Th>
-                    <Th className={num}>Saldo líquido</Th>
-                    <Th className={num}>Ganho de capital</Th>
-                    <Th className={num}>Rentab.</Th>
-                    <Th className={num}>% carteira</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {shown.map((d) => (
-                    <tr key={d.inv.id} className="border-b border-border/60">
-                      <td>
-                        {d.inv.name}
-                        {d.inv.institution && <span className="text-muted-foreground"> · {d.inv.institution}</span>}
-                      </td>
-                      <td>{INVESTMENT_KIND_LABELS[d.inv.kind]}</td>
-                      <td className={num}>{formatReportMoney(d.end.capital)}</td>
-                      <td className={num}>{formatReportMoney(d.end.balance)}</td>
-                      <td className={cn(num, d.end.gain < 0 && "text-destructive")}>{signed(d.end.gain)}</td>
-                      <td className={num}>{pct(d.end.capital > 0 ? d.end.gain / d.end.capital : null)}</td>
-                      <td className={num}>{pct(total.balance ? d.end.balance / total.balance : null)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-foreground/70 font-bold">
-                    <td colSpan={2}>Total</td>
-                    <td className={num}>{formatReportMoney(total.capital)}</td>
-                    <td className={num}>{formatReportMoney(total.balance)}</td>
-                    <td className={cn(num, total.gain < 0 && "text-destructive")}>{signed(total.gain)}</td>
-                    <td className={num}>{pct(total.capital > 0 ? total.gain / total.capital : null)}</td>
-                    <td className={num}>{total.balance ? "100%" : "-"}</td>
-                  </tr>
-                </tfoot>
-              </ReportTable>
-            </section>
+      <section className="grid gap-4 lg:grid-cols-2 print:grid-cols-1">
+        <ReportChart
+          title="Composição da carteira"
+          type="rosca"
+          data={{ labels: rows.map((d) => d.name), money: true, series: [{ name: "Saldo", color: "#2563eb", values: rows.map((d) => d.balance) }] }}
+        />
+        <ReportChart
+          title="Capital aplicado e ganho por aplicação"
+          type="barras-empilhadas"
+          data={{
+            labels: rows.map((d) => d.name),
+            money: true,
+            series: [
+              { name: "Capital aplicado", color: "#64748b", values: rows.map((d) => d.capital) },
+              { name: "Ganho de capital", color: "#16a34a", values: rows.map((d) => d.gain) },
+            ],
+          }}
+        />
+        <ReportChart
+          title="Aportes x saldo líquido"
+          type="linhas"
+          data={{
+            labels,
+            money: true,
+            series: [
+              { name: "Aportes acumulados", color: "#94a3b8", values: evolution.map((e) => e.capital) },
+              { name: "Saldo líquido", color: "#2563eb", values: evolution.map((e) => e.balance) },
+            ],
+          }}
+        />
+        <ReportChart
+          title="Capital aplicado e ganho de capital no período"
+          type="barras-empilhadas"
+          data={{
+            labels,
+            money: true,
+            series: [
+              { name: "Capital aplicado", color: "#64748b", values: evolution.map((e) => e.capital) },
+              { name: "Ganho de capital", color: "#16a34a", values: evolution.map((e) => e.gain) },
+            ],
+          }}
+        />
+      </section>
 
-            <section className="grid gap-6 break-inside-avoid md:grid-cols-2 print:grid-cols-2">
-              <InteractiveChart
-                title="Composição da carteira"
-                type="rosca"
-                height={240}
-                data={{
-                  labels: shown.map((d) => d.inv.name),
-                  money: true,
-                  series: [{ name: "Saldo", color: "#2563eb", values: shown.map((d) => d.end.balance) }],
-                }}
-              />
-              <InteractiveChart
-                title="Capital aplicado e ganho por aplicação"
-                type="barras-empilhadas"
-                height={240}
-                data={{
-                  labels: shown.map((d) => d.inv.name),
-                  money: true,
-                  series: [
-                    { name: "Capital aplicado", color: "#64748b", values: shown.map((d) => d.end.capital) },
-                    { name: "Ganho de capital", color: "#16a34a", values: shown.map((d) => d.end.gain) },
-                  ],
-                }}
-              />
-            </section>
-
-            <section className="grid gap-6 break-inside-avoid md:grid-cols-2 print:grid-cols-2">
-              <InteractiveChart
-                title="Aportes x saldo líquido"
-                type="linhas"
-                height={240}
-                data={{
-                  labels: ends.map(monthLabel),
-                  money: true,
-                  series: [
-                    { name: "Aportes acumulados", color: "#94a3b8", values: evolution.map((e) => e.capital) },
-                    { name: "Saldo líquido", color: "#2563eb", values: evolution.map((e) => e.balance) },
-                  ],
-                }}
-              />
-              <InteractiveChart
-                title="Capital aplicado e ganho de capital"
-                type="barras-empilhadas"
-                height={240}
-                data={{
-                  labels: ends.map(monthLabel),
-                  money: true,
-                  series: [
-                    { name: "Capital aplicado", color: "#64748b", values: evolution.map((e) => e.capital) },
-                    { name: "Ganho de capital", color: "#16a34a", values: evolution.map((e) => e.gain) },
-                  ],
-                }}
-              />
-            </section>
-
-            <section className="break-inside-avoid">
-              <h3 className="mb-2 font-semibold uppercase">Movimentações no período</h3>
-              <ReportTable>
-                <thead>
-                  <tr>
-                    <Th className={num}>Aportes</Th>
-                    <Th className={num}>Resgates</Th>
-                    <Th className={num}>Rendimentos</Th>
+      <section className="min-w-0 break-inside-avoid">
+        <h3 className="mb-2 font-semibold uppercase">Movimentações no período</h3>
+        <div className="mb-3 grid grid-cols-3 gap-2">
+          <Stat label="Aportes" value={formatReportMoney(total.contributions)} />
+          <Stat label="Resgates" value={formatReportMoney(total.withdrawals)} />
+          <Stat label="Rendimentos" value={signed(total.gainInPeriod)} tone={red(total.gainInPeriod)} />
+        </div>
+        {movements.length > 0 ? (
+          <div className="overflow-x-auto">
+            <ReportTable>
+              <thead>
+                <tr>
+                  <Th className="w-24">Data</Th>
+                  <Th>Aplicação</Th>
+                  <Th>Tipo</Th>
+                  <Th className="hidden md:table-cell print:table-cell">Descrição</Th>
+                  <Th className={num}>Valor</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {movements.map((m, i) => (
+                  <tr key={i} className="border-b border-border/60">
+                    <td>{formatDate(m.date)}</td>
+                    <td>{m.name}</td>
+                    <td>{m.kind}</td>
+                    <td className="hidden text-muted-foreground md:table-cell print:table-cell">{m.description}</td>
+                    <td className={num}>{formatReportMoney(m.cents)}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  <tr className="font-semibold">
-                    <td className={num}>{formatReportMoney(total.contributions)}</td>
-                    <td className={num}>{formatReportMoney(total.withdrawals)}</td>
-                    <td className={cn(num, total.gainInPeriod < 0 && "text-destructive")}>{signed(total.gainInPeriod)}</td>
-                  </tr>
-                </tbody>
-              </ReportTable>
-              {movementsInPeriod.length > 0 && (
-                <ReportTable className="mt-3">
-                  <thead>
-                    <tr>
-                      <Th className="w-24">Data</Th>
-                      <Th>Aplicação</Th>
-                      <Th>Tipo</Th>
-                      <Th>Descrição</Th>
-                      <Th className={num}>Valor</Th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {movementsInPeriod.map((m, i) => (
-                      <tr key={i} className="border-b border-border/60">
-                        <td>{formatDate(m.date)}</td>
-                        <td>{m.name}</td>
-                        <td>{m.kind}</td>
-                        <td className="text-muted-foreground">{m.description}</td>
-                        <td className={num}>{formatReportMoney(m.cents)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </ReportTable>
-              )}
-            </section>
+                ))}
+              </tbody>
+            </ReportTable>
           </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Nenhuma movimentação no período.</p>
         )}
-      </ReportSheet>
-    </>
+      </section>
+    </div>
   );
 }
