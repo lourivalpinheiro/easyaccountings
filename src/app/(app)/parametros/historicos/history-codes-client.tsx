@@ -14,8 +14,15 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toastResult } from "@/lib/toast-result";
 import { deleteHistoryCode, deleteHistoryCodes, saveHistoryCode } from "../actions";
+import { ActiveFilters, ColumnHead, useTableControls } from "@/components/column-head";
+import type { Column } from "@/lib/table-controls";
 
 type Row = { id: string; code: number; description: string };
+
+const COLUMNS: Column<Row>[] = [
+  { id: "code", label: "Código", type: "number", value: (r) => r.code },
+  { id: "description", label: "Descrição", value: (r) => r.description },
+];
 
 export function HistoryCodesClient({ rows }: { rows: Row[] }) {
   const [editing, setEditing] = useState<Partial<Row> | null>(null);
@@ -26,7 +33,8 @@ export function HistoryCodesClient({ rows }: { rows: Row[] }) {
     const q = query.trim().toLowerCase();
     return q ? rows.filter((r) => r.description.toLowerCase().includes(q) || String(r.code).includes(q)) : rows;
   }, [rows, query]);
-  const { rows: pageRows, pagination } = usePagination(filtered);
+  const table = useTableControls(filtered, COLUMNS);
+  const { rows: pageRows, pagination } = usePagination(table.rows);
   const nextCode = rows.reduce((m, r) => Math.max(m, r.code), 0) + 1;
 
   function toggleRow(id: string, checked: boolean) {
@@ -67,6 +75,7 @@ export function HistoryCodesClient({ rows }: { rows: Row[] }) {
           </Button>
         </div>
         <BulkDeleteBar count={selected.size} onConfirm={() => deleteHistoryCodes([...selected])} onDone={() => setSelected(new Set())} />
+        <ActiveFilters controls={table.controls} />
         <Table>
           <TableHeader>
             <TableRow>
@@ -77,13 +86,13 @@ export function HistoryCodesClient({ rows }: { rows: Row[] }) {
                   aria-label="Selecionar todos"
                 />
               </TableHead>
-              <TableHead className="w-24">Código</TableHead>
-              <TableHead>Descrição</TableHead>
+              <ColumnHead controls={table.controls} id="code" className="w-24" />
+              <ColumnHead controls={table.controls} id="description" />
               <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 && (
+            {table.rows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={4} className="text-center text-muted-foreground">
                   {rows.length === 0 ? "Nenhum histórico cadastrado." : "Nenhum histórico encontrado."}

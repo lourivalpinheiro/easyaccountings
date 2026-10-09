@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toastResult } from "@/lib/toast-result";
 import { deleteNote, deleteNotes } from "../actions";
+import { ActiveFilters, ColumnHead, useTableControls } from "@/components/column-head";
+import type { Column } from "@/lib/table-controls";
 
 type Note = {
   id: string;
@@ -22,6 +24,17 @@ type Note = {
   accountName: string | null;
 };
 
+const COLUMNS: Column<Note>[] = [
+  { id: "number", label: "Nota", type: "number", value: (n) => n.number },
+  { id: "title", label: "Título", value: (n) => n.title },
+  {
+    id: "account",
+    label: "Conta vinculada",
+    value: (n) => (n.accountName ? `${n.accountClassification} - ${n.accountName}` : null),
+  },
+  { id: "updatedAt", label: "Atualizada em", type: "date", value: (n) => n.updatedAt },
+];
+
 export function NotesTable({ notes }: { notes: Note[] }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -29,7 +42,8 @@ export function NotesTable({ notes }: { notes: Note[] }) {
     const q = query.trim().toLowerCase();
     return q ? notes.filter((n) => n.title.toLowerCase().includes(q) || String(n.number).includes(q)) : notes;
   }, [notes, query]);
-  const { rows: pageRows, pagination } = usePagination(filtered);
+  const table = useTableControls(filtered, COLUMNS);
+  const { rows: pageRows, pagination } = usePagination(table.rows);
 
   function toggleRow(id: string, checked: boolean) {
     setSelected((prev) => {
@@ -51,6 +65,7 @@ export function NotesTable({ notes }: { notes: Note[] }) {
         <Input placeholder="Buscar nota..." className="pl-8" value={query} onChange={(e) => setQuery(e.target.value)} />
       </div>
       <BulkDeleteBar count={selected.size} onConfirm={() => deleteNotes([...selected])} onDone={() => setSelected(new Set())} />
+    <ActiveFilters controls={table.controls} />
     <Table>
       <TableHeader>
         <TableRow>
@@ -61,15 +76,15 @@ export function NotesTable({ notes }: { notes: Note[] }) {
               aria-label="Selecionar todos"
             />
           </TableHead>
-          <TableHead className="w-20">Nota</TableHead>
-          <TableHead>Título</TableHead>
-          <TableHead className="hidden md:table-cell">Conta vinculada</TableHead>
-          <TableHead className="hidden w-44 lg:table-cell">Atualizada em</TableHead>
+          <ColumnHead controls={table.controls} id="number" className="w-20" />
+          <ColumnHead controls={table.controls} id="title" />
+          <ColumnHead controls={table.controls} id="account" className="hidden md:table-cell" />
+          <ColumnHead controls={table.controls} id="updatedAt" className="hidden w-44 lg:table-cell" />
           <TableHead className="w-24 text-right">Ações</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {filtered.length === 0 && (
+        {table.rows.length === 0 && (
           <TableRow>
             <TableCell colSpan={6} className="text-center text-muted-foreground">
               {notes.length === 0 ? "Nenhuma nota explicativa cadastrada." : "Nenhuma nota encontrada."}

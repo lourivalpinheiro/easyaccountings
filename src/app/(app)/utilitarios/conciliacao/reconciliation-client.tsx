@@ -25,6 +25,8 @@ import {
 } from "@/lib/reconciliation-actions";
 import { toastResult } from "@/lib/toast-result";
 import { cn } from "@/lib/utils";
+import { ActiveFilters, ColumnHead, useTableControls } from "@/components/column-head";
+import type { Column } from "@/lib/table-controls";
 
 type Transaction = {
   id: string;
@@ -49,6 +51,66 @@ type Knot = {
 };
 
 const MODULE_LABELS: Record<Knot["module"], string> = { contabil: "Contábil", financeiro: "Financeiro", ambos: "Ambos" };
+
+const STATEMENT_COLUMNS: Column<Statement>[] = [
+  { id: "fileName", label: "Arquivo", value: (s) => s.fileName },
+  { id: "bankAccount", label: "Conta bancária", value: (s) => `${s.bankAccountClassification} - ${s.bankAccountName}` },
+  { id: "createdAt", label: "Importado em", type: "date", value: (s) => s.createdAt },
+];
+
+const DONE_OPTIONS = [
+  { value: "feito", label: "Feito" },
+  { value: "pendente", label: "Pendente" },
+];
+
+const PENDING_COLUMNS: Column<Transaction>[] = [
+  { id: "date", label: "Data", type: "date", value: (t) => t.date },
+  { id: "description", label: "Descrição", value: (t) => t.description },
+  { id: "amount", label: "Valor", type: "money", value: (t) => t.amountCents },
+  {
+    id: "contabil",
+    label: "Contábil",
+    type: "select",
+    value: (t) => (t.journalEntryId ? "feito" : "pendente"),
+    options: DONE_OPTIONS,
+  },
+  {
+    id: "financeiro",
+    label: "Financeiro",
+    type: "select",
+    value: (t) => (t.cashFlowEntryId ? "feito" : "pendente"),
+    options: DONE_OPTIONS,
+  },
+];
+
+const RECONCILED_COLUMNS: Column<Transaction>[] = [
+  { id: "date", label: "Data", type: "date", value: (t) => t.date },
+  { id: "description", label: "Descrição", value: (t) => t.description },
+  { id: "amount", label: "Valor", type: "money", value: (t) => t.amountCents },
+  {
+    id: "how",
+    label: "Conciliado em",
+    type: "select",
+    value: (t) => [t.journalEntryId && "Contábil", t.cashFlowEntryId && "Financeiro"].filter(Boolean).join(" + "),
+  },
+];
+
+const KNOT_COLUMNS: Column<Knot>[] = [
+  { id: "pattern", label: "Padrão (descrição)", value: (k) => k.pattern },
+  {
+    id: "module",
+    label: "Módulo",
+    type: "select",
+    value: (k) => k.module,
+    options: Object.entries(MODULE_LABELS).map(([value, label]) => ({ value, label })),
+  },
+  {
+    id: "account",
+    label: "Contábil",
+    value: (k) => (k.counterAccountId ? `${k.counterAccountClassification} - ${k.counterAccountName}` : null),
+  },
+  { id: "category", label: "Financeiro", value: (k) => k.cashCategory },
+];
 
 function AccountQuickCreate({ onCreated }: { onCreated: (id: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -121,6 +183,10 @@ export function ReconciliationClient({
   const fileInput = useRef<HTMLInputElement>(null);
   const [pendingImport, startImport] = useTransition();
   const [pendingReconcile, startReconcile] = useTransition();
+  const statementTable = useTableControls(statements, STATEMENT_COLUMNS);
+  const pendingTable = useTableControls(pending, PENDING_COLUMNS);
+  const reconciledTable = useTableControls(reconciled, RECONCILED_COLUMNS);
+  const knotTable = useTableControls(knots, KNOT_COLUMNS);
 
   function openReconcile(tx: Transaction, mode: "contabil" | "financeiro") {
     setDraft({ tx, mode });
@@ -185,17 +251,18 @@ export function ReconciliationClient({
         </CardHeader>
         {statements.length > 0 && (
           <CardContent>
+            <ActiveFilters controls={statementTable.controls} />
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Arquivo</TableHead>
-                  <TableHead>Conta bancária</TableHead>
-                  <TableHead className="text-right">Importado em</TableHead>
+                  <ColumnHead controls={statementTable.controls} id="fileName" />
+                  <ColumnHead controls={statementTable.controls} id="bankAccount" />
+                  <ColumnHead controls={statementTable.controls} id="createdAt" className="text-right" />
                   <TableHead className="w-16 text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {statements.map((s) => (
+                {statementTable.rows.map((s) => (
                   <TableRow key={s.id}>
                     <TableCell className="font-medium">{s.fileName}</TableCell>
                     <TableCell>
@@ -247,32 +314,33 @@ export function ReconciliationClient({
                   </ConfirmAction>
                 </div>
               )}
+              <ActiveFilters controls={pendingTable.controls} />
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10">
                       <Checkbox
-                        checked={pending.length > 0 && pending.every((t) => selected.has(t.id))}
-                        onCheckedChange={(v) => setSelected(v === true ? new Set(pending.map((t) => t.id)) : new Set())}
+                        checked={pendingTable.rows.length > 0 && pendingTable.rows.every((t) => selected.has(t.id))}
+                        onCheckedChange={(v) => setSelected(v === true ? new Set(pendingTable.rows.map((t) => t.id)) : new Set())}
                         aria-label="Selecionar todos"
                       />
                     </TableHead>
-                    <TableHead className="w-28">Data</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead className="w-28 text-center">Contábil</TableHead>
-                    <TableHead className="w-28 text-center">Financeiro</TableHead>
+                    <ColumnHead controls={pendingTable.controls} id="date" className="w-28" />
+                    <ColumnHead controls={pendingTable.controls} id="description" />
+                    <ColumnHead controls={pendingTable.controls} id="amount" className="text-right" />
+                    <ColumnHead controls={pendingTable.controls} id="contabil" className="w-28 text-center" />
+                    <ColumnHead controls={pendingTable.controls} id="financeiro" className="w-28 text-center" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pending.length === 0 && (
+                  {pendingTable.rows.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center text-muted-foreground">
                         Nenhuma transação pendente.
                       </TableCell>
                     </TableRow>
                   )}
-                  {pending.map((t) => (
+                  {pendingTable.rows.map((t) => (
                     <TableRow key={t.id}>
                       <TableCell>
                         <Checkbox checked={selected.has(t.id)} onCheckedChange={(v) => toggleRow(t.id, v === true)} aria-label={`Selecionar ${t.description}`} />
@@ -315,25 +383,26 @@ export function ReconciliationClient({
         <TabsContent value="conciliados">
           <Card>
             <CardContent className="pt-4">
+              <ActiveFilters controls={reconciledTable.controls} />
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-28">Data</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead>Conciliado em</TableHead>
+                    <ColumnHead controls={reconciledTable.controls} id="date" className="w-28" />
+                    <ColumnHead controls={reconciledTable.controls} id="description" />
+                    <ColumnHead controls={reconciledTable.controls} id="amount" className="text-right" />
+                    <ColumnHead controls={reconciledTable.controls} id="how" />
                     <TableHead className="w-28 text-right">Ação</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {reconciled.length === 0 && (
+                  {reconciledTable.rows.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground">
                         Nenhuma transação conciliada ainda.
                       </TableCell>
                     </TableRow>
                   )}
-                  {reconciled.map((t) => (
+                  {reconciledTable.rows.map((t) => (
                     <TableRow key={t.id}>
                       <TableCell>{formatDate(t.date)}</TableCell>
                       <TableCell className="max-w-64 truncate">{t.description}</TableCell>
@@ -376,25 +445,26 @@ export function ReconciliationClient({
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <ActiveFilters controls={knotTable.controls} />
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Padrão (descrição)</TableHead>
-                    <TableHead>Módulo</TableHead>
-                    <TableHead>Contábil</TableHead>
-                    <TableHead>Financeiro</TableHead>
+                    <ColumnHead controls={knotTable.controls} id="pattern" />
+                    <ColumnHead controls={knotTable.controls} id="module" />
+                    <ColumnHead controls={knotTable.controls} id="account" />
+                    <ColumnHead controls={knotTable.controls} id="category" />
                     <TableHead className="w-16 text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {knots.length === 0 && (
+                  {knotTable.rows.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground">
                         Nenhum Knot ainda. Concilie uma transação manualmente para criar o primeiro.
                       </TableCell>
                     </TableRow>
                   )}
-                  {knots.map((k) => (
+                  {knotTable.rows.map((k) => (
                     <TableRow key={k.id}>
                       <TableCell className="max-w-56 truncate font-medium">{k.pattern}</TableCell>
                       <TableCell>

@@ -12,8 +12,16 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toastResult } from "@/lib/toast-result";
 import { deleteDreCategories, deleteDreCategory, reorderDreCategories, saveDreCategory } from "../actions";
+import { ActiveFilters, ColumnHead, useTableControls } from "@/components/column-head";
+import type { Column } from "@/lib/table-controls";
 
 type Category = { id: string; name: string; position: number; accounts: number };
+
+const COLUMNS: Column<Category>[] = [
+  { id: "position", label: "Ordem", type: "number", value: (c) => c.position },
+  { id: "name", label: "Categoria", value: (c) => c.name },
+  { id: "accounts", label: "Contas", type: "number", value: (c) => c.accounts },
+];
 
 export function DreCategoriesClient({ categories }: { categories: Category[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -26,7 +34,8 @@ export function DreCategoriesClient({ categories }: { categories: Category[] }) 
     const q = query.trim().toLowerCase();
     return q ? categories.filter((c) => c.name.toLowerCase().includes(q)) : categories;
   }, [categories, query]);
-  const { rows: pageRows, pagination } = usePagination(filtered);
+  const table = useTableControls(filtered, COLUMNS);
+  const { rows: pageRows, pagination } = usePagination(table.rows);
 
   function toggleRow(id: string, checked: boolean) {
     setSelected((prev) => {
@@ -74,6 +83,7 @@ export function DreCategoriesClient({ categories }: { categories: Category[] }) 
           <Input placeholder="Buscar categoria..." className="pl-8" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
         <BulkDeleteBar count={selected.size} onConfirm={() => deleteDreCategories([...selected])} onDone={() => setSelected(new Set())} />
+        <ActiveFilters controls={table.controls} />
         <Table>
           <TableHeader>
             <TableRow>
@@ -84,14 +94,14 @@ export function DreCategoriesClient({ categories }: { categories: Category[] }) 
                   aria-label="Selecionar todos"
                 />
               </TableHead>
-              <TableHead className="w-16">Ordem</TableHead>
-              <TableHead>Categoria</TableHead>
-              <TableHead className="w-32 text-right">Contas</TableHead>
+              <ColumnHead controls={table.controls} id="position" className="w-16" />
+              <ColumnHead controls={table.controls} id="name" />
+              <ColumnHead controls={table.controls} id="accounts" className="w-32 text-right" />
               <TableHead className="w-44 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 && (
+            {table.rows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground">
                   {categories.length === 0 ? "Nenhuma categoria cadastrada." : "Nenhuma categoria encontrada."}

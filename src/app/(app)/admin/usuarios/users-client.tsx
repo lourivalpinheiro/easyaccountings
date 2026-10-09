@@ -16,6 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toastResult } from "@/lib/toast-result";
 import { createUser, deleteUser, deleteUsers, resetUserTotp, setUserCompanies, updateUser } from "../actions";
+import { ActiveFilters, ColumnHead, useTableControls } from "@/components/column-head";
+import type { Column } from "@/lib/table-controls";
 
 type User = {
   id: string;
@@ -26,6 +28,31 @@ type User = {
   hasTotp: boolean;
   companyIds: string[];
 };
+const COLUMNS: Column<User>[] = [
+  { id: "name", label: "Nome", value: (u) => u.name },
+  { id: "email", label: "E-mail", value: (u) => u.email },
+  {
+    id: "role",
+    label: "Perfil",
+    type: "select",
+    value: (u) => u.role,
+    options: [
+      { value: "admin", label: "Administrador" },
+      { value: "user", label: "Usuário" },
+    ],
+  },
+  {
+    id: "active",
+    label: "Situação",
+    type: "select",
+    value: (u) => (u.active ? "ativo" : "inativo"),
+    options: [
+      { value: "ativo", label: "Ativo" },
+      { value: "inativo", label: "Inativo" },
+    ],
+  },
+];
+
 type CompanyOption = { id: string; legalName: string };
 
 export function UsersClient({
@@ -72,7 +99,8 @@ export function UsersClient({
     if (!q) return users;
     return users.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
   }, [users, query]);
-  const { rows: pageRows, pagination } = usePagination(filtered);
+  const table = useTableControls(filtered, COLUMNS);
+  const { rows: pageRows, pagination } = usePagination(table.rows);
   const selectable = pageRows.filter((u) => u.id !== currentUserId);
 
   function toggleRow(id: string, checked: boolean) {
@@ -120,6 +148,7 @@ export function UsersClient({
           </Button>
         </div>
         <BulkDeleteBar count={selected.size} onConfirm={() => deleteUsers([...selected])} onDone={() => setSelected(new Set())} />
+        <ActiveFilters controls={table.controls} />
         <Table>
           <TableHeader>
             <TableRow>
@@ -130,15 +159,15 @@ export function UsersClient({
                   aria-label="Selecionar todos"
                 />
               </TableHead>
-              <TableHead>Nome</TableHead>
-              <TableHead className="hidden md:table-cell">E-mail</TableHead>
-              <TableHead className="hidden sm:table-cell">Perfil</TableHead>
-              <TableHead>Situação</TableHead>
+              <ColumnHead controls={table.controls} id="name" />
+              <ColumnHead controls={table.controls} id="email" className="hidden md:table-cell" />
+              <ColumnHead controls={table.controls} id="role" className="hidden sm:table-cell" />
+              <ColumnHead controls={table.controls} id="active" />
               <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 && (
+            {table.rows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-muted-foreground">
                   Nenhum usuário encontrado.

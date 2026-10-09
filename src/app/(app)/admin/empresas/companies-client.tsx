@@ -26,6 +26,8 @@ import { formatDocument, PERSON_LABELS, type PersonType } from "@/lib/accounting
 import { PUBLIC_SECTIONS } from "@/lib/public-sections";
 import { toastResult } from "@/lib/toast-result";
 import { deleteCompanies, deleteCompany, publishCompany, saveCompany, unpublishCompany, updatePublicSections } from "../actions";
+import { ActiveFilters, ColumnHead, useTableControls } from "@/components/column-head";
+import type { Column } from "@/lib/table-controls";
 
 const publicUrl = (token: string) => `${window.location.origin}/publico/${token}`;
 
@@ -47,6 +49,29 @@ type Company = {
   publicToken: string | null;
   publicSections: string[] | null;
 };
+
+const COLUMNS: Column<Company>[] = [
+  { id: "name", label: "Nome / Razão social", value: (c) => `${c.legalName} ${c.displayName ?? ""}` },
+  {
+    id: "type",
+    label: "Tipo",
+    type: "select",
+    value: (c) => c.personType,
+    options: (["PJ", "PF", "INF"] as const).map((t) => ({ value: t, label: PERSON_LABELS[t].type })),
+  },
+  { id: "document", label: "CPF / CNPJ", value: (c) => c.document },
+  {
+    id: "published",
+    label: "Publicação",
+    type: "select",
+    value: (c) => (c.publicToken ? "sim" : "nao"),
+    options: [
+      { value: "sim", label: "Publicada" },
+      { value: "nao", label: "Privada" },
+    ],
+    sortable: false,
+  },
+];
 
 /** Aplica a máscara de CPF ou CNPJ enquanto o usuário digita. */
 function maskDocument(personType: PersonType, value: string) {
@@ -80,7 +105,8 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
     if (!q) return companies;
     return companies.filter((c) => c.legalName.toLowerCase().includes(q) || c.displayName?.toLowerCase().includes(q) || c.document?.includes(q));
   }, [companies, query]);
-  const { rows: pageRows, pagination } = usePagination(filtered);
+  const table = useTableControls(filtered, COLUMNS);
+  const { rows: pageRows, pagination } = usePagination(table.rows);
 
   function toggleRow(id: string, checked: boolean) {
     setSelected((prev) => {
@@ -154,6 +180,7 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
           onConfirm={() => deleteCompanies([...selected])}
           onDone={() => setSelected(new Set())}
         />
+        <ActiveFilters controls={table.controls} />
         <Table>
           <TableHeader>
             <TableRow>
@@ -164,14 +191,16 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
                   aria-label="Selecionar todos"
                 />
               </TableHead>
-              <TableHead>Nome / Razão social</TableHead>
-              <TableHead className="hidden w-36 md:table-cell">Tipo</TableHead>
-              <TableHead className="hidden sm:table-cell">CPF / CNPJ</TableHead>
-              <TableHead className="w-24 text-right">Ações</TableHead>
+              <ColumnHead controls={table.controls} id="name" />
+              <ColumnHead controls={table.controls} id="type" className="hidden w-36 md:table-cell" />
+              <ColumnHead controls={table.controls} id="document" className="hidden sm:table-cell" />
+              <ColumnHead controls={table.controls} id="published" className="w-24 text-right">
+                Ações
+              </ColumnHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 && (
+            {table.rows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground">
                   {companies.length === 0 ? "Nenhuma empresa cadastrada." : "Nenhuma empresa encontrada."}

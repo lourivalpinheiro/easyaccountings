@@ -18,6 +18,7 @@ import { useMemo, useState, useTransition } from "react";
 import { AccountPicker, type PickerAccount } from "@/components/account-picker";
 import { AttachmentsPanel } from "@/components/attachments-panel";
 import { BulkDeleteBar } from "@/components/bulk-delete-bar";
+import { ActiveFilters, ColumnHead, useUrlTableControls } from "@/components/column-head";
 import { ConfirmAction } from "@/components/confirm-button";
 import { MoneyInput } from "@/components/money-input";
 import { Badge } from "@/components/ui/badge";
@@ -35,8 +36,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate, formatMoney } from "@/lib/accounting";
 import { todayIso } from "@/lib/period";
 import { toastResult } from "@/lib/toast-result";
+import type { Filters, SortState } from "@/lib/table-controls";
 import { cn } from "@/lib/utils";
 import { deleteEntries, deleteEntry, saveEntry } from "../actions";
+import { ENTRY_COLUMNS } from "./columns";
 
 type Line = { accountId: string; side: "D" | "C"; cents: number };
 type Attachment = { id: string; fileName: string; mimeType: string; sizeBytes: number; isPublic: boolean };
@@ -151,6 +154,7 @@ const sum = (lines: Line[]) => lines.reduce((s, l) => s + l.cents, 0);
 export function EntriesClient({
   period,
   query,
+  table,
   paging,
   accounts,
   histories,
@@ -158,6 +162,7 @@ export function EntriesClient({
 }: {
   period: { from: string; to: string };
   query: string;
+  table: { sort: SortState; filters: Filters };
   paging: { page: number; pageSize: number; total: number };
   accounts: PickerAccount[];
   histories: { code: number; description: string }[];
@@ -174,6 +179,7 @@ export function EntriesClient({
   const [filter, setFilter] = useState(query);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
+  const controls = useUrlTableControls(ENTRY_COLUMNS, table);
 
   function toggleBulkRow(id: string, checked: boolean) {
     setBulkSelected((prev) => {
@@ -247,14 +253,15 @@ export function EntriesClient({
   }
 
   const go = (changes: { pagina?: number; por?: number; de?: string; ate?: string; q?: string }) => {
-    const p = new URLSearchParams({
-      de: changes.de ?? period.from,
-      ate: changes.ate ?? period.to,
-      pagina: String(changes.pagina ?? paging.page),
-      por: String(changes.por ?? paging.pageSize),
-    });
+    // Mantém ordenação e filtros de coluna já presentes na URL.
+    const p = new URLSearchParams(window.location.search);
+    p.set("de", changes.de ?? period.from);
+    p.set("ate", changes.ate ?? period.to);
+    p.set("pagina", String(changes.pagina ?? paging.page));
+    p.set("por", String(changes.por ?? paging.pageSize));
     const q = changes.q ?? query;
     if (q) p.set("q", q);
+    else p.delete("q");
     router.push(`?${p.toString()}`);
   };
 
@@ -499,6 +506,7 @@ export function EntriesClient({
             onConfirm={() => deleteEntries([...bulkSelected])}
             onDone={() => setBulkSelected(new Set())}
           />
+          <ActiveFilters controls={controls} />
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -510,12 +518,12 @@ export function EntriesClient({
                       aria-label="Selecionar todos"
                     />
                   </TableHead>
-                  <TableHead className="w-16 text-right">Nº</TableHead>
-                  <TableHead className="w-28">Data</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead className="hidden md:table-cell">Débito</TableHead>
-                  <TableHead className="hidden md:table-cell">Crédito</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
+                  <ColumnHead controls={controls} id="number" className="w-16 text-right" />
+                  <ColumnHead controls={controls} id="date" className="w-28" />
+                  <ColumnHead controls={controls} id="description" />
+                  <ColumnHead controls={controls} id="debit" className="hidden md:table-cell" />
+                  <ColumnHead controls={controls} id="credit" className="hidden md:table-cell" />
+                  <ColumnHead controls={controls} id="amount" className="text-right" />
                 </TableRow>
               </TableHeader>
               <TableBody>

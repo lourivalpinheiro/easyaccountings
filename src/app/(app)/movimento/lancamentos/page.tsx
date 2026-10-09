@@ -1,13 +1,16 @@
-import { and, asc, count, desc, eq, gte, ilike, lte, or, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql, type SQL } from "drizzle-orm";
 import type { Metadata } from "next";
 import { NoCompany, PageHeader } from "@/components/page-header";
 import { db } from "@/db";
-import { historyCodes, journalEntries } from "@/db/schema";
+import { accounts, historyCodes, journalEntries, journalLines } from "@/db/schema";
 import { toCents } from "@/lib/accounting";
 import { getAttachmentsByJournalEntry } from "@/lib/data/attachments";
 import { getChart } from "@/lib/data/ledger";
 import { getPageContext } from "@/lib/page-context";
 import { readPeriod } from "@/lib/period";
+import { readTableParams } from "@/lib/table-controls";
+import { filtersToSql, sortToSql } from "@/lib/table-sql";
+import { ENTRY_COLUMNS } from "./columns";
 import { EntriesClient } from "./entries-client";
 
 export const metadata: Metadata = { title: "Lançamentos" };
@@ -33,25 +36,52 @@ export default async function EntriesPage({ searchParams }: PageProps<"/moviment
     );
     if (search) filters.push(search);
   }
+  const table = readTableParams(params, ENTRY_COLUMNS);
+  // Contas de cada lado como texto "classificação - nome" e total a débito, calculados por lançamento.
+  const sideAccounts = (side: "D" | "C") =>
+    sql`(select string_agg(${accounts.classification} || ' - ' || ${accounts.name}, ' | ')
+      from ${journalLines} join ${accounts} on ${accounts.id} = ${journalLines.accountId}
+      where ${journalLines.entryId} = ${journalEntries.id} and ${journalLines.side} = ${side})`;
+  const columnExprs = {
+    number: journalEntries.number,
+    date: journalEntries.date,
+    description: journalEntries.description,
+    debit: sideAccounts("D"),
+    credit: sideAccounts("C"),
+    amount: sql`(select coalesce(sum(${journalLines.amount}), 0) from ${journalLines}
+      where ${journalLines.entryId} = ${journalEntries.id} and ${journalLines.side} = 'D')`,
+  };
+  filters.push(...filtersToSql(ENTRY_COLUMNS, table.filters, columnExprs));
   const where = and(...filters);
 
-  const [chart, histories, entries, [{ total }]] = await Promise.all([
+  // Primeiro a página de ids (ordenada e filtrada com subconsultas), depois os lançamentos com as partidas.
+  const [chart, histories, pageIds, [{ total }]] = await Promise.all([
     getChart(company.id),
     db
       .select({ code: historyCodes.code, description: historyCodes.description })
       .from(historyCodes)
       .where(eq(historyCodes.companyId, company.id))
       .orderBy(asc(historyCodes.code)),
-    db.query.journalEntries.findMany({
-      where,
-      orderBy: [desc(journalEntries.date), desc(journalEntries.number)],
-      with: { lines: { orderBy: (l, { asc }) => asc(l.position) } },
-      limit: pageSize,
-      offset: (page - 1) * pageSize,
-    }),
+    db
+      .select({ id: journalEntries.id })
+      .from(journalEntries)
+      .where(where)
+      .orderBy(...sortToSql(table.sort, columnExprs, [desc(journalEntries.date), desc(journalEntries.number)]))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
     db.select({ total: count() }).from(journalEntries).where(where),
   ]);
-  const attachmentsByEntry = await getAttachmentsByJournalEntry(entries.map((e) => e.id));
+  const ids = pageIds.map((r) => r.id);
+  const loaded =
+    ids.length === 0
+      ? []
+      : await db.query.journalEntries.findMany({
+          where: inArray(journalEntries.id, ids),
+          with: { lines: { orderBy: (l, { asc }) => asc(l.position) } },
+        });
+  const byId = new Map(loaded.map((e) => [e.id, e]));
+  const entries = ids.flatMap((id) => byId.get(id) ?? []);
+  const attachmentsByEntry = await getAttachmentsByJournalEntry(ids);
 
   return (
     <>
@@ -59,6 +89,7 @@ export default async function EntriesPage({ searchParams }: PageProps<"/moviment
       <EntriesClient
         period={period}
         query={q}
+        table={table}
         paging={{ page, pageSize, total }}
         accounts={chart.map(({ id, reducedCode, classification, name, analytic }) => ({
           id,

@@ -15,10 +15,24 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { formatBalance, formatDate, formatMoney } from "@/lib/accounting";
 import { toastResult } from "@/lib/toast-result";
 import { revertClosing, runClosing, saveClosingSettings } from "../actions";
+import { ActiveFilters, ColumnHead, useTableControls } from "@/components/column-head";
+import type { Column } from "@/lib/table-controls";
 
 type Settings = { resultAccountId: string | null; profitAccountId: string | null; lossAccountId: string | null };
 type PreviewRow = { id: string; classification: string; name: string; group: string; balance: number };
 type Batch = { id: string; startDate: string; endDate: string; netResult: number; createdAt: string };
+
+const PREVIEW_COLUMNS: Column<PreviewRow>[] = [
+  { id: "classification", label: "Classificação", value: (r) => r.classification },
+  { id: "name", label: "Conta", value: (r) => r.name },
+  { id: "balance", label: "Saldo a zerar", type: "money", value: (r) => r.balance },
+];
+
+const BATCH_COLUMNS: Column<Batch>[] = [
+  { id: "period", label: "Período", type: "date", value: (b) => b.startDate },
+  { id: "result", label: "Resultado", type: "money", value: (b) => b.netResult },
+  { id: "createdAt", label: "Executado em", type: "date", value: (b) => b.createdAt },
+];
 
 export function ClosingClient({
   period,
@@ -42,11 +56,13 @@ export function ClosingClient({
   const [pending, startTransition] = useTransition();
   const [batchFrom, setBatchFrom] = useState("");
   const [batchTo, setBatchTo] = useState("");
-  const previewPage = usePagination(preview);
+  const previewTable = useTableControls(preview, PREVIEW_COLUMNS);
+  const previewPage = usePagination(previewTable.rows);
   const filteredBatches = useMemo(() => {
     return batches.filter((b) => (!batchFrom || b.endDate >= batchFrom) && (!batchTo || b.startDate <= batchTo));
   }, [batches, batchFrom, batchTo]);
-  const batchPage = usePagination(filteredBatches, 10);
+  const batchTable = useTableControls(filteredBatches, BATCH_COLUMNS);
+  const batchPage = usePagination(batchTable.rows, 10);
   const result = -preview.reduce((s, r) => s + r.balance, 0);
 
   return (
@@ -99,12 +115,13 @@ export function ClosingClient({
               <Search /> Visualizar saldos
             </Button>
           </div>
+          <ActiveFilters controls={previewTable.controls} />
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Classificação</TableHead>
-                <TableHead>Conta</TableHead>
-                <TableHead className="text-right">Saldo a zerar</TableHead>
+                <ColumnHead controls={previewTable.controls} id="classification" />
+                <ColumnHead controls={previewTable.controls} id="name" />
+                <ColumnHead controls={previewTable.controls} id="balance" className="text-right" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -160,17 +177,18 @@ export function ClosingClient({
           </div>
         </CardHeader>
         <CardContent>
+          <ActiveFilters controls={batchTable.controls} />
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Período</TableHead>
-                <TableHead>Resultado</TableHead>
-                <TableHead className="hidden md:table-cell">Executado em</TableHead>
+                <ColumnHead controls={batchTable.controls} id="period" />
+                <ColumnHead controls={batchTable.controls} id="result" />
+                <ColumnHead controls={batchTable.controls} id="createdAt" className="hidden md:table-cell" />
                 <TableHead className="w-28 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredBatches.length === 0 && (
+              {batchTable.rows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center text-muted-foreground">
                     {batches.length === 0 ? "Nenhum zeramento realizado." : "Nenhum zeramento encontrado."}

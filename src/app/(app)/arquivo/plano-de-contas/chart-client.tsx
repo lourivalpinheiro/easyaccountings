@@ -41,6 +41,8 @@ import { toastResult } from "@/lib/toast-result";
 import { cn } from "@/lib/utils";
 import { saveDreCategory } from "../../parametros/actions";
 import { deleteAccount, deleteAccounts, saveAccount } from "../actions";
+import { ActiveFilters, ColumnHead, useTableControls } from "@/components/column-head";
+import type { Column } from "@/lib/table-controls";
 
 type Account = {
   id: string;
@@ -54,6 +56,33 @@ type Account = {
   dreCategoryId: string | null;
   dreCategoryName: string | null;
 };
+const COLUMNS: Column<Account>[] = [
+  { id: "reducedCode", label: "Reduzido", type: "number", value: (a) => a.reducedCode },
+  { id: "classification", label: "Classificação", value: (a) => a.classification },
+  { id: "name", label: "Descrição", value: (a) => a.name },
+  {
+    id: "kind",
+    label: "Tipo",
+    type: "select",
+    value: (a) => (a.analytic ? "analitica" : "sintetica"),
+    options: [
+      { value: "analitica", label: "Analítica" },
+      { value: "sintetica", label: "Sintética" },
+    ],
+  },
+  {
+    id: "nature",
+    label: "Natureza",
+    type: "select",
+    value: (a) => a.nature,
+    options: [
+      { value: "D", label: "Devedora" },
+      { value: "C", label: "Credora" },
+    ],
+  },
+  { id: "dre", label: "Categoria DRE", type: "select", value: (a) => a.dreCategoryName },
+];
+
 type Category = { id: string; name: string };
 type Draft = { id?: string; classification: string; name: string; dreCategoryId: string | null };
 
@@ -108,7 +137,8 @@ export function ChartClient({ chart, categories: initialCategories }: { chart: A
     });
   }
 
-  const { rows: pageRows, pagination } = usePagination(filtered);
+  const table = useTableControls(filtered, COLUMNS);
+  const { rows: pageRows, pagination } = usePagination(table.rows);
   const draftLevel = draft?.classification ? levelOf(draft.classification) : 0;
   const draftAnalytic = draft ? isAnalytic(draft.classification) : false;
 
@@ -144,6 +174,7 @@ export function ChartClient({ chart, categories: initialCategories }: { chart: A
         </div>
         <BulkDeleteBar count={selected.size} onConfirm={() => deleteAccounts([...selected])} onDone={() => setSelected(new Set())} />
         <div className="overflow-x-auto">
+          <ActiveFilters controls={table.controls} />
           <Table>
             <TableHeader>
               <TableRow>
@@ -154,17 +185,17 @@ export function ChartClient({ chart, categories: initialCategories }: { chart: A
                     aria-label="Selecionar todos"
                   />
                 </TableHead>
-                <TableHead className="hidden w-20 text-right sm:table-cell">Reduzido</TableHead>
-                <TableHead className="w-32">Classificação</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead className="hidden w-24 md:table-cell">Tipo</TableHead>
-                <TableHead className="hidden w-24 lg:table-cell">Natureza</TableHead>
-                <TableHead className="hidden lg:table-cell">Categoria DRE</TableHead>
+                <ColumnHead controls={table.controls} id="reducedCode" className="hidden w-20 text-right sm:table-cell" />
+                <ColumnHead controls={table.controls} id="classification" className="w-32" />
+                <ColumnHead controls={table.controls} id="name" />
+                <ColumnHead controls={table.controls} id="kind" className="hidden w-24 md:table-cell" />
+                <ColumnHead controls={table.controls} id="nature" className="hidden w-24 lg:table-cell" />
+                <ColumnHead controls={table.controls} id="dre" className="hidden lg:table-cell" />
                 <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.length === 0 && (
+              {table.rows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center text-muted-foreground">
                     Nenhuma conta encontrada.

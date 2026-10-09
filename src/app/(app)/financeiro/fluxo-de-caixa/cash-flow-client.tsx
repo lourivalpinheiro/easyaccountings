@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { AttachmentsPanel } from "@/components/attachments-panel";
+import { ActiveFilters, ColumnHead, useUrlTableControls } from "@/components/column-head";
 import { BulkDeleteBar } from "@/components/bulk-delete-bar";
 import { ConfirmAction } from "@/components/confirm-button";
 import { MoneyInput } from "@/components/money-input";
@@ -44,8 +45,10 @@ import {
 } from "@/lib/cash-flow-types";
 import { todayIso } from "@/lib/period";
 import { toastResult } from "@/lib/toast-result";
+import type { Filters, SortState } from "@/lib/table-controls";
 import { cn } from "@/lib/utils";
 import { deleteCashFlowEntries, deleteCashFlowEntry, deleteCashFlowSeriesFrom, saveCashFlowEntry } from "../actions";
+import { CASH_FLOW_COLUMNS } from "./columns";
 
 type Attachment = { id: string; fileName: string; mimeType: string; sizeBytes: number; isPublic: boolean };
 type Entry = {
@@ -97,18 +100,18 @@ const TYPE_STYLE: Record<FlowType, { icon: typeof Wallet; tone: string; on: stri
   },
 };
 
-const ALL = "todos";
-
 export function CashFlowClient({
   period,
-  filters,
+  query,
+  table,
   paging,
   summary,
   categories,
   entries,
 }: {
   period: { from: string; to: string };
-  filters: { q: string; type: string };
+  query: string;
+  table: { sort: SortState; filters: Filters };
   paging: { page: number; pageSize: number; total: number };
   summary: { previous: number; inflow: number; outflow: number; byType: Record<FlowType, number> };
   categories: string[];
@@ -118,10 +121,12 @@ export function CashFlowClient({
   const [draft, setDraft] = useState<Draft | null>(null);
   const [from, setFrom] = useState(period.from);
   const [to, setTo] = useState(period.to);
-  const [q, setQ] = useState(filters.q);
-  const [type, setType] = useState(filters.type || ALL);
+  const [q, setQ] = useState(query);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
+  const controls = useUrlTableControls(CASH_FLOW_COLUMNS, table, {
+    category: categories.map((c) => ({ value: c, label: c })),
+  });
   const final = summary.previous + summary.inflow - summary.outflow;
 
   function toggleRow(id: string, checked: boolean) {
@@ -138,14 +143,14 @@ export function CashFlowClient({
   }
 
   const go = (changes: { pagina?: number; por?: number } = {}) => {
-    const p = new URLSearchParams({
-      de: from,
-      ate: to,
-      pagina: String(changes.pagina ?? 1),
-      por: String(changes.por ?? paging.pageSize),
-    });
+    // Mantém ordenação e filtros de coluna já presentes na URL.
+    const p = new URLSearchParams(window.location.search);
+    p.set("de", from);
+    p.set("ate", to);
+    p.set("pagina", String(changes.pagina ?? 1));
+    p.set("por", String(changes.por ?? paging.pageSize));
     if (q.trim()) p.set("q", q.trim());
-    if (type !== ALL) p.set("tipo", type);
+    else p.delete("q");
     router.push(`?${p.toString()}`);
   };
 
@@ -229,19 +234,6 @@ export function CashFlowClient({
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && go()}
             />
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger className="col-span-2 w-full sm:w-44" aria-label="Tipo">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent position="popper">
-                <SelectItem value={ALL}>Todos</SelectItem>
-                {FLOW_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {FLOW_TYPE_LABELS[t].plural}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Input type="date" className="sm:w-40" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="De" />
             <Input type="date" className="sm:w-40" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Até" />
             <Button variant="outline" className="col-span-2 sm:col-span-1" onClick={() => go()}>
@@ -255,6 +247,7 @@ export function CashFlowClient({
             onConfirm={() => deleteCashFlowEntries([...selected])}
             onDone={() => setSelected(new Set())}
           />
+          <ActiveFilters controls={controls} />
           <Table>
             <TableHeader>
               <TableRow>
@@ -265,17 +258,18 @@ export function CashFlowClient({
                     aria-label="Selecionar todos"
                   />
                 </TableHead>
-                <TableHead className="w-24">Data</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead className="hidden md:table-cell">Categoria</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
+                <ColumnHead controls={controls} id="date" className="w-24" />
+                <ColumnHead controls={controls} id="description" />
+                <ColumnHead controls={controls} id="type" className="hidden lg:table-cell" />
+                <ColumnHead controls={controls} id="category" className="hidden md:table-cell" />
+                <ColumnHead controls={controls} id="amount" className="text-right" />
                 <TableHead className="w-28 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {entries.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     Nenhuma movimentação entre {formatDate(period.from)} e {formatDate(period.to)}.
                   </TableCell>
                 </TableRow>
@@ -296,9 +290,10 @@ export function CashFlowClient({
                         />
                       )}
                     </div>
-                    <div className={cn("text-xs", TYPE_STYLE[e.type].tone)}>{FLOW_TYPE_LABELS[e.type].singular}</div>
+                    <div className={cn("text-xs lg:hidden", TYPE_STYLE[e.type].tone)}>{FLOW_TYPE_LABELS[e.type].singular}</div>
                     {e.category && <div className="truncate text-xs text-muted-foreground md:hidden">{e.category}</div>}
                   </TableCell>
+                  <TableCell className={cn("hidden lg:table-cell", TYPE_STYLE[e.type].tone)}>{FLOW_TYPE_LABELS[e.type].singular}</TableCell>
                   <TableCell className="hidden md:table-cell">{e.category ?? <span className="text-muted-foreground">—</span>}</TableCell>
                   <TableCell
                     className={cn(

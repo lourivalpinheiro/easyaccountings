@@ -4,12 +4,14 @@ import { NoCompany, PageHeader } from "@/components/page-header";
 import { db } from "@/db";
 import { cashFlowEntries } from "@/db/schema";
 import { toCents } from "@/lib/accounting";
-import { isFlowType } from "@/lib/cash-flow-types";
 import { getAttachmentsByCashFlowEntry } from "@/lib/data/attachments";
 import { getCashBalanceBefore, getCashTotals } from "@/lib/data/cash-flow";
 import { getPageContext } from "@/lib/page-context";
 import { readPeriod } from "@/lib/period";
+import { readTableParams } from "@/lib/table-controls";
+import { filtersToSql, sortToSql } from "@/lib/table-sql";
 import { CashFlowClient } from "./cash-flow-client";
+import { CASH_FLOW_COLUMNS } from "./columns";
 
 export const metadata: Metadata = { title: "Fluxo de caixa" };
 
@@ -21,14 +23,21 @@ export default async function CashFlowPage({ searchParams }: PageProps<"/finance
   const pageSize = [10, 25, 50, 100].includes(Number(params.por)) ? Number(params.por) : 25;
   const page = Math.max(1, Math.floor(Number(params.pagina)) || 1);
   const q = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
-  const type = isFlowType(params.tipo) ? params.tipo : undefined;
+  const table = readTableParams(params, CASH_FLOW_COLUMNS);
+  const columnExprs = {
+    date: cashFlowEntries.date,
+    description: cashFlowEntries.description,
+    category: cashFlowEntries.category,
+    type: cashFlowEntries.type,
+    amount: cashFlowEntries.amount,
+  };
 
   const filters: SQL[] = [
     eq(cashFlowEntries.companyId, company.id),
     gte(cashFlowEntries.date, period.from),
     lte(cashFlowEntries.date, period.to),
   ];
-  if (type) filters.push(eq(cashFlowEntries.type, type));
+  filters.push(...filtersToSql(CASH_FLOW_COLUMNS, table.filters, columnExprs));
   if (q) {
     const like = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
     filters.push(or(ilike(cashFlowEntries.description, like), ilike(cashFlowEntries.category, like))!);
@@ -40,7 +49,7 @@ export default async function CashFlowPage({ searchParams }: PageProps<"/finance
       .select()
       .from(cashFlowEntries)
       .where(where)
-      .orderBy(desc(cashFlowEntries.date), desc(cashFlowEntries.createdAt))
+      .orderBy(...sortToSql(table.sort, columnExprs, [desc(cashFlowEntries.date), desc(cashFlowEntries.createdAt)]))
       .limit(pageSize)
       .offset((page - 1) * pageSize),
     db.select({ total: count() }).from(cashFlowEntries).where(where),
@@ -59,7 +68,8 @@ export default async function CashFlowPage({ searchParams }: PageProps<"/finance
       <PageHeader title="Fluxo de caixa" description="Registro das entradas, saídas, economias e gastos no cartão de crédito." />
       <CashFlowClient
         period={period}
-        filters={{ q, type: type ?? "" }}
+        query={q}
+        table={table}
         paging={{ page, pageSize, total }}
         summary={{ previous, ...totals }}
         categories={categories.map((c) => c.category!)}

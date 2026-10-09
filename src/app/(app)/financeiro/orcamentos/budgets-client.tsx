@@ -20,9 +20,18 @@ import { todayIso, yearStartIso } from "@/lib/period";
 import { toastResult } from "@/lib/toast-result";
 import { cn } from "@/lib/utils";
 import { deleteBudget, deleteBudgets, saveBudget } from "./actions";
+import { ActiveFilters, ColumnHead, useTableControls } from "@/components/column-head";
+import type { Column } from "@/lib/table-controls";
 
 type Item = { accountId: string | null; cents: number };
 type Budget = { id?: string; name: string; startDate: string; endDate: string; totalCents: number; items: Item[] };
+
+const COLUMNS: Column<Budget>[] = [
+  { id: "name", label: "Orçamento", value: (b) => b.name },
+  { id: "period", label: "Período", type: "date", value: (b) => b.startDate },
+  { id: "accounts", label: "Contas", type: "number", value: (b) => b.items.length },
+  { id: "total", label: "Valor total", type: "money", value: (b) => b.totalCents },
+];
 
 export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accounts: PickerAccount[] }) {
   const [draft, setDraft] = useState<Budget | null>(null);
@@ -33,7 +42,8 @@ export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accoun
     const q = query.trim().toLowerCase();
     return q ? budgets.filter((b) => b.name.toLowerCase().includes(q)) : budgets;
   }, [budgets, query]);
-  const { rows: pageRows, pagination } = usePagination(filtered);
+  const table = useTableControls(filtered, COLUMNS);
+  const { rows: pageRows, pagination } = usePagination(table.rows);
 
   function toggleRow(id: string, checked: boolean) {
     setSelected((prev) => {
@@ -92,6 +102,7 @@ export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accoun
           </Button>
         </div>
         <BulkDeleteBar count={selected.size} onConfirm={() => deleteBudgets([...selected])} onDone={() => setSelected(new Set())} />
+        <ActiveFilters controls={table.controls} />
         <Table>
           <TableHeader>
             <TableRow>
@@ -102,15 +113,15 @@ export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accoun
                   aria-label="Selecionar todos"
                 />
               </TableHead>
-              <TableHead>Orçamento</TableHead>
-              <TableHead className="hidden sm:table-cell">Período</TableHead>
-              <TableHead className="hidden text-right md:table-cell">Contas</TableHead>
-              <TableHead className="text-right">Valor total</TableHead>
+              <ColumnHead controls={table.controls} id="name" />
+              <ColumnHead controls={table.controls} id="period" className="hidden sm:table-cell" />
+              <ColumnHead controls={table.controls} id="accounts" className="hidden text-right md:table-cell" />
+              <ColumnHead controls={table.controls} id="total" className="text-right" />
               <TableHead className="w-32 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 && (
+            {table.rows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-muted-foreground">
                   {budgets.length === 0 ? "Nenhum orçamento cadastrado." : "Nenhum orçamento encontrado."}
