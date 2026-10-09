@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate, formatMoney } from "@/lib/accounting";
 import { INVESTMENT_KIND_LABELS, type InvestmentKind } from "@/lib/investment-types";
-import { investmentSeries, type InvestmentMovement, type InvestmentValuation } from "@/lib/investment-series";
+import { investmentSeries, openingCapital, type InvestmentMovement, type InvestmentValuation } from "@/lib/investment-series";
 import { MONTH_SHORT } from "@/lib/plan/calc";
 import { cn } from "@/lib/utils";
 
@@ -33,26 +33,31 @@ export function InvestmentDetail({
   onUpdateBalance: () => void;
 }) {
   const series = useMemo(() => investmentSeries(movements, valuations, today), [movements, valuations, today]);
+  const opening = useMemo(() => openingCapital(movements, valuations), [movements, valuations]);
   const last = series[series.length - 1];
   const balance = last?.balance ?? 0;
-  const invested = last?.invested ?? 0;
-  const yieldTotal = last?.yieldTotal ?? 0;
-  const last12 = series.slice(-12).reduce((s, p) => s + p.yieldMonth, 0);
-  const profitability = invested > 0 ? yieldTotal / invested : null;
+  const capital = last?.capital ?? 0;
+  const gain = last?.gain ?? 0;
+  const profitability = capital > 0 ? gain / capital : null;
 
   const history = [
     ...movements.map((m) => ({ date: m.date, kind: m.kind === "aporte" ? "Aporte" : "Resgate", description: m.description, cents: m.kind === "aporte" ? m.cents : -m.cents })),
-    ...valuations.map((v) => ({ date: v.date, kind: "Saldo informado", description: "Saldo do extrato (inclui rendimentos)", cents: v.cents })),
+    ...valuations.map((v) => ({
+      date: v.date,
+      kind: "Saldo informado",
+      description: v.date === opening.date ? "Saldo inicial (capital já aplicado)" : "Saldo do extrato (inclui rendimentos)",
+      cents: v.cents,
+    })),
   ].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 
   const cards = [
-    { label: "Saldo atual", value: formatMoney(balance) },
-    { label: "Aportes líquidos", value: signedMoney(invested), hint: "aportes - resgates" },
-    { label: "Rendimento acumulado", value: signedMoney(yieldTotal), tone: yieldTotal < 0 ? "text-destructive" : "text-emerald-600 dark:text-emerald-400" },
+    { label: "Saldo líquido", value: formatMoney(balance) },
+    { label: "Capital aplicado", value: signedMoney(capital), hint: opening.date ? "saldo inicial + aportes - resgates" : "aportes - resgates" },
+    { label: "Ganho de capital", value: signedMoney(gain), tone: gain < 0 ? "text-destructive" : gain > 0 ? "text-emerald-600 dark:text-emerald-400" : undefined },
     {
       label: "Rentabilidade",
       value: profitability === null ? "—" : `${(profitability * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`,
-      hint: `${signedMoney(last12)} nos últimos 12 meses`,
+      hint: "ganho ÷ capital aplicado",
     },
   ];
 
@@ -93,40 +98,31 @@ export function InvestmentDetail({
         ) : (
           <div className="grid gap-4">
             <InteractiveChart
-              title="Evolução do saldo"
-              type="area"
+              title="Aportes x saldo líquido"
+              type="linhas"
               height={260}
               data={{
                 labels: series.map((p) => label(p.month)),
                 money: true,
                 series: [
-                  { name: "Saldo", color: "#2563eb", values: series.map((p) => p.balance) },
-                  { name: "Aportes líquidos", color: "#94a3b8", values: series.map((p) => p.invested) },
+                  { name: "Aportes acumulados", color: "#94a3b8", values: series.map((p) => p.capital) },
+                  { name: "Saldo líquido", color: "#2563eb", values: series.map((p) => p.balance) },
                 ],
               }}
             />
-            <div className="grid gap-4 md:grid-cols-2">
-              <InteractiveChart
-                title="Rendimento no mês"
-                type="barras"
-                height={220}
-                data={{
-                  labels: series.map((p) => label(p.month)),
-                  money: true,
-                  series: [{ name: "Rendimento", color: "#16a34a", values: series.map((p) => p.yieldMonth) }],
-                }}
-              />
-              <InteractiveChart
-                title="Rendimento acumulado"
-                type="linhas"
-                height={220}
-                data={{
-                  labels: series.map((p) => label(p.month)),
-                  money: true,
-                  series: [{ name: "Rendimento acumulado", color: "#9333ea", values: series.map((p) => p.yieldTotal) }],
-                }}
-              />
-            </div>
+            <InteractiveChart
+              title="Capital aplicado e ganho de capital"
+              type="barras-empilhadas"
+              height={260}
+              data={{
+                labels: series.map((p) => label(p.month)),
+                money: true,
+                series: [
+                  { name: "Capital aplicado", color: "#64748b", values: series.map((p) => p.capital) },
+                  { name: "Ganho de capital", color: "#16a34a", values: series.map((p) => p.gain) },
+                ],
+              }}
+            />
           </div>
         )}
 
