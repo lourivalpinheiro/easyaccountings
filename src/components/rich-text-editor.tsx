@@ -116,7 +116,8 @@ function ColorButton({ label, icon, onPick }: { label: string; icon: React.React
   );
 }
 
-function Toolbar({ editor }: { editor: Editor }) {
+/** Barra de formatação; `children` acrescenta botões (ex.: inserir gráfico no planejamento). */
+export function Toolbar({ editor, children }: { editor: Editor; children?: React.ReactNode }) {
   const chain = () => editor.chain().focus();
   const block = editor.isActive("heading", { level: 1 })
     ? "1"
@@ -296,25 +297,36 @@ function Toolbar({ editor }: { editor: Editor }) {
           </ToolButton>
         </>
       )}
+      {children && (
+        <>
+          <Separator orientation="vertical" className="mx-1 h-6" />
+          {children}
+        </>
+      )}
     </div>
   );
+}
+
+/** Extensões de formatação comuns aos editores do sistema. */
+export function baseExtensions(placeholder: string) {
+  return [
+    StarterKit.configure({ link: { openOnClick: false } }),
+    TextStyleKit,
+    Highlight.configure({ multicolor: true }),
+    TextAlign.configure({ types: ["heading", "paragraph"] }),
+    Subscript,
+    Superscript,
+    Image,
+    TableKit.configure({ table: { resizable: true } }),
+    Placeholder.configure({ placeholder }),
+  ];
 }
 
 export function RichTextEditor({ value, onChange }: { value: string; onChange: (html: string) => void }) {
   const editor = useEditor({
     immediatelyRender: false,
     shouldRerenderOnTransaction: true,
-    extensions: [
-      StarterKit.configure({ link: { openOnClick: false } }),
-      TextStyleKit,
-      Highlight.configure({ multicolor: true }),
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Subscript,
-      Superscript,
-      Image,
-      TableKit.configure({ table: { resizable: true } }),
-      Placeholder.configure({ placeholder: "Escreva o conteúdo da nota explicativa..." }),
-    ],
+    extensions: baseExtensions("Escreva o conteúdo da nota explicativa..."),
     content: value,
     editorProps: {
       attributes: { class: "tiptap-content min-h-[24rem] p-4 outline-none" },

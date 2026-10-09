@@ -49,3 +49,9 @@ export async function signedUrl(bucket: string, path: string, expiresIn = 60) {
   if (error || !data) throw new Error(`Falha ao gerar link: ${error?.message}`);
   return data.signedUrl;
 }
+
+export async function downloadFile(bucket: string, path: string) {
+  const { data, error } = await withTimeout(createAdminClient().storage.from(bucket).download(path), "baixar arquivo");
+  if (error || !data) throw new Error(`Falha ao baixar arquivo: ${error?.message}`);
+  return Buffer.from(await data.arrayBuffer());
+}
