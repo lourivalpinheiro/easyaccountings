@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatDateTimeBrasilia } from "@/lib/accounting";
 import { toastResult } from "@/lib/toast-result";
 import { deleteNote, deleteNotes } from "../actions";
 import { ActiveFilters, ColumnHead, useTableControls } from "@/components/column-head";
@@ -105,7 +106,7 @@ export function NotesTable({ notes }: { notes: Note[] }) {
                 <span className="text-muted-foreground">—</span>
               )}
             </TableCell>
-            <TableCell className="hidden lg:table-cell">{new Date(n.updatedAt).toLocaleString("pt-BR")}</TableCell>
+            <TableCell className="hidden lg:table-cell">{formatDateTimeBrasilia(n.updatedAt)}</TableCell>
             <TableCell className="text-right">
               <Button variant="ghost" size="icon" aria-label="Editar" asChild>
                 <Link href={`/arquivo/notas-explicativas/${n.id}`}>

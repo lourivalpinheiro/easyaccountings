@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatDate, formatMoney } from "@/lib/accounting";
+import { formatDate, formatDateTimeBrasilia, formatMoney } from "@/lib/accounting";
 import { saveAccount } from "../../arquivo/actions";
 import {
   deleteBankTransactions,
@@ -268,7 +268,7 @@ export function ReconciliationClient({
                     <TableCell>
                       {s.bankAccountClassification} - {s.bankAccountName}
                     </TableCell>
-                    <TableCell className="text-right text-muted-foreground">{new Date(s.createdAt).toLocaleString("pt-BR")}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{formatDateTimeBrasilia(s.createdAt)}</TableCell>
                     <TableCell className="text-right">
                       <ConfirmAction
                         title="Excluir extrato importado?"

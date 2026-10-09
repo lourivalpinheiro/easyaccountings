@@ -27,7 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Separator orientation="vertical" className="mx-1 hidden h-5 sm:block" />
           <div className="min-w-0 flex-1">
           <CompanySwitcher
-            companies={companies.map(({ id, personType, legalName, document }) => ({ id, personType, legalName, document }))}
+            companies={companies.map(({ id, personType, legalName, displayName, document }) => ({ id, personType, legalName, displayName, document }))}
             activeId={active?.id}
             pinnedId={user.pinnedCompanyId}
           />

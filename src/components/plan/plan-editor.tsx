@@ -75,7 +75,7 @@ export function PlanEditor({
     setSave({ kind: "saving" });
     const result = await saveSectionContent(planId, section, doc);
     if (result.ok) {
-      setSave({ kind: "saved", at: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) });
+      setSave({ kind: "saved", at: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }) });
     } else {
       pendingDoc.current = pendingDoc.current ?? doc;
       setSave({ kind: "error" });

@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatBalance, formatDate, formatMoney } from "@/lib/accounting";
+import { formatBalance, formatDate, formatDateTimeBrasilia, formatMoney } from "@/lib/accounting";
 import { toastResult } from "@/lib/toast-result";
 import { revertClosing, runClosing, saveClosingSettings } from "../actions";
 import { ActiveFilters, ColumnHead, useTableControls } from "@/components/column-head";
@@ -205,7 +205,7 @@ export function ClosingClient({
                       {b.netResult >= 0 ? "Lucro" : "Prejuízo"} {formatMoney(Math.abs(b.netResult))}
                     </Badge>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">{new Date(b.createdAt).toLocaleString("pt-BR")}</TableCell>
+                  <TableCell className="hidden md:table-cell">{formatDateTimeBrasilia(b.createdAt)}</TableCell>
                   <TableCell className="text-right">
                     <ConfirmAction
                       title="Estornar zeramento?"

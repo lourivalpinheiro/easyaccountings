@@ -68,7 +68,7 @@ export function PlansClient({ plans }: { plans: Plan[] }) {
                 <CardDescription className="flex items-center gap-1">
                   <History className="size-3.5" />
                   {p.versions === 0 ? "Nenhuma versão salva" : `${p.versions} versão(ões) salva(s)`} · atualizado em{" "}
-                  {new Date(p.updatedAt).toLocaleDateString("pt-BR")}
+                  {new Date(p.updatedAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                 </CardDescription>
               </CardHeader>
               <CardFooter className="gap-2">

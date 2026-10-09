@@ -130,9 +130,14 @@ export function formatReportBalance(cents: number) {
   return cents === 0 ? "-" : formatBalance(cents);
 }
 
+/** Data e hora no fuso de Brasília, independente do fuso do servidor ou do navegador. */
+export function formatDateTimeBrasilia(value: string | Date) {
+  return new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
 /** Data e hora atuais no fuso de Brasília, independente do fuso do servidor. */
 export function formatNowBrasilia() {
-  return new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  return formatDateTimeBrasilia(new Date());
 }
 
 /** Converte texto digitado em pt-BR ("1.234,56") para centavos. */
