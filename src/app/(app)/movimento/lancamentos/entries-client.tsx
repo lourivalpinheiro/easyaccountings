@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, CopyPlus, FilePlus2, Lock, Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, CopyPlus, FilePlus2, Lock, Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { AccountPicker, type PickerAccount } from "@/components/account-picker";
@@ -205,6 +205,13 @@ export function EntriesClient({
     setDraft(blankDraft());
   };
 
+  const entryIndex = selected ? entries.findIndex((e) => e.id === selected.id) : -1;
+  const goTo = (delta: number) => {
+    if (editing || entryIndex === -1) return;
+    const next = entries[entryIndex + delta];
+    if (next) select(next);
+  };
+
   const cancel = () => {
     setMode(selected ? "view" : "closed");
     setDraft(selected ? draftFromEntry(selected) : blankDraft());
@@ -257,15 +264,15 @@ export function EntriesClient({
     const multi = isDebit ? multiDebit : multiCredit;
     const auto = !multi && draft.formula !== "NxN" && (isDebit ? multiCredit : multiDebit || draft.formula === "1x1");
     return (
-      <div className="grid content-start gap-2">
+      <div className="grid min-w-0 content-start gap-2">
         <Label>{isDebit ? "Débito" : "Crédito"}</Label>
         {draft[side].map((row, i) => (
-          <div key={i} className="grid grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_9rem_auto]">
+          <div key={i} className="grid min-w-0 grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_9rem_auto]">
             <AccountPicker
               accounts={accounts}
               value={row.accountId}
               onChange={(accountId) => setRow(side, i, { accountId })}
-              className={cn("col-span-2 sm:col-span-1", !editing && "pointer-events-none opacity-90")}
+              className={cn("col-span-2 min-w-0 sm:col-span-1", !editing && "pointer-events-none opacity-90")}
               placeholder={isDebit ? "Conta a débito" : "Conta a crédito"}
             />
             <MoneyInput
@@ -309,17 +316,39 @@ export function EntriesClient({
   return (
     <div className="grid gap-6">
       <Dialog open={mode !== "closed"} onOpenChange={(o) => !o && close()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
-        <CardHeader className="flex flex-col gap-3 p-0 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <DialogTitle className="flex items-center gap-2">
-            {mode === "new" ? "Novo lançamento" : `Lançamento nº ${draft.number ?? ""}`}
-            {selected?.closing && mode === "view" && (
-              <Badge variant="secondary">
-                <Lock /> Zeramento
-              </Badge>
+      <DialogContent className="max-h-[90vh] overflow-x-hidden overflow-y-auto sm:max-w-3xl">
+        <CardHeader className="flex flex-col gap-3 p-0">
+          <div className="flex flex-wrap items-center gap-2">
+            {mode !== "new" && (
+              <div className="flex shrink-0 gap-1">
+                <Button variant="outline" size="icon" disabled={editing || entryIndex <= 0} onClick={() => goTo(-1)} aria-label="Lançamento anterior">
+                  <ChevronLeft />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  disabled={editing || entryIndex === -1 || entryIndex >= entries.length - 1}
+                  onClick={() => goTo(1)}
+                  aria-label="Próximo lançamento"
+                >
+                  <ChevronRight />
+                </Button>
+              </div>
             )}
-            {mode === "edit" && <Badge variant="outline">Editando</Badge>}
-          </DialogTitle>
+            <DialogTitle className="flex min-w-0 flex-1 items-center gap-2">
+              <span className="truncate">{mode === "new" ? "Novo lançamento" : `Lançamento nº ${draft.number ?? ""}`}</span>
+              {selected?.closing && mode === "view" && (
+                <Badge variant="secondary" className="shrink-0">
+                  <Lock /> Zeramento
+                </Badge>
+              )}
+              {mode === "edit" && (
+                <Badge variant="outline" className="shrink-0">
+                  Editando
+                </Badge>
+              )}
+            </DialogTitle>
+          </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {editing ? (
               <>
@@ -372,14 +401,11 @@ export function EntriesClient({
                     <Trash2 className="text-destructive" /> Excluir
                   </Button>
                 </ConfirmAction>
-                <Button variant="ghost" onClick={close}>
-                  <X /> Fechar
-                </Button>
               </>
             )}
           </div>
         </CardHeader>
-        <CardContent className="grid gap-4 p-0 pt-4">
+        <CardContent className="grid min-w-0 gap-4 p-0 pt-4">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-[10rem_8rem_1fr_16rem]">
             <div className="grid gap-2">
               <Label htmlFor="date">Data</Label>
@@ -426,7 +452,7 @@ export function EntriesClient({
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
             {sidePanel("debits")}
             {sidePanel("credits")}
           </div>
