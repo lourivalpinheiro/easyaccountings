@@ -1,6 +1,18 @@
 "use client";
 
-import { ChevronDown, ChevronLeft, ChevronRight, CopyPlus, FilePlus2, Lock, Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronFirst,
+  ChevronLast,
+  ChevronLeft,
+  ChevronRight,
+  FilePlus2,
+  Lock,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { AccountPicker, type PickerAccount } from "@/components/account-picker";
@@ -14,19 +26,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  FORMULA_LABELS,
-  formatDate,
-  formatMoney,
-  formulaOf,
-  type EntryFormula,
-} from "@/lib/accounting";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatDate, formatMoney } from "@/lib/accounting";
 import { todayIso } from "@/lib/period";
 import { toastResult } from "@/lib/toast-result";
 import { cn } from "@/lib/utils";
@@ -44,36 +50,56 @@ type Entry = {
   lines: Line[];
   attachments: Attachment[];
 };
-type Row = { accountId: string | null; cents: number };
+/** Partida: um valor com conta a débito, conta a crédito ou ambas (partida completa). */
+type Partida = { debitAccountId: string | null; creditAccountId: string | null; cents: number };
 type Draft = {
   id?: string;
   number?: number;
   date: string;
   historyCode: string;
   description: string;
-  formula: EntryFormula;
-  debits: Row[];
-  credits: Row[];
+  partidas: Partida[];
 };
 
-const emptyRow = (): Row => ({ accountId: null, cents: 0 });
+const emptyPartida = (): Partida => ({ debitAccountId: null, creditAccountId: null, cents: 0 });
 
 function blankDraft(date = todayIso()): Draft {
-  return { date, historyCode: "", description: "", formula: "1x1", debits: [emptyRow()], credits: [emptyRow()] };
+  return { date, historyCode: "", description: "", partidas: [emptyPartida()] };
+}
+
+/** Débito seguido de crédito de mesmo valor vira uma partida completa; as demais linhas ficam em partidas de um lado só. */
+function partidasFromLines(lines: Line[]): Partida[] {
+  const partidas: Partida[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    const next = lines[i + 1];
+    if (l.side === "D" && next?.side === "C" && next.cents === l.cents) {
+      partidas.push({ debitAccountId: l.accountId, creditAccountId: next.accountId, cents: l.cents });
+      i++;
+    } else if (l.side === "D") {
+      partidas.push({ debitAccountId: l.accountId, creditAccountId: null, cents: l.cents });
+    } else {
+      partidas.push({ debitAccountId: null, creditAccountId: l.accountId, cents: l.cents });
+    }
+  }
+  return partidas.length > 0 ? partidas : [emptyPartida()];
+}
+
+function linesFromPartidas(partidas: Partida[]): Line[] {
+  return partidas.flatMap((p) => [
+    ...(p.debitAccountId ? [{ accountId: p.debitAccountId, side: "D" as const, cents: p.cents }] : []),
+    ...(p.creditAccountId ? [{ accountId: p.creditAccountId, side: "C" as const, cents: p.cents }] : []),
+  ]);
 }
 
 function draftFromEntry(e: Entry): Draft {
-  const debits = e.lines.filter((l) => l.side === "D").map(({ accountId, cents }) => ({ accountId, cents }));
-  const credits = e.lines.filter((l) => l.side === "C").map(({ accountId, cents }) => ({ accountId, cents }));
   return {
     id: e.id,
     number: e.number,
     date: e.date,
     historyCode: e.historyCode ? String(e.historyCode) : "",
     description: e.description,
-    formula: formulaOf(debits.length, credits.length),
-    debits,
-    credits,
+    partidas: partidasFromLines(e.lines),
   };
 }
 
@@ -120,15 +146,7 @@ function HistoryPicker({
   );
 }
 
-const sum = (rows: Row[]) => rows.reduce((s, r) => s + r.cents, 0);
-
-/** Lado único das fórmulas 1xN / Nx1 acompanha automaticamente o total do outro lado. */
-function balanced(d: Draft): Draft {
-  if (d.formula === "1x1") return { ...d, credits: [{ ...d.credits[0], cents: d.debits[0].cents }] };
-  if (d.formula === "1xN") return { ...d, debits: [{ ...d.debits[0], cents: sum(d.credits) }] };
-  if (d.formula === "Nx1") return { ...d, credits: [{ ...d.credits[0], cents: sum(d.debits) }] };
-  return d;
-}
+const sum = (lines: Line[]) => lines.reduce((s, l) => s + l.cents, 0);
 
 export function EntriesClient({
   period,
@@ -146,9 +164,11 @@ export function EntriesClient({
   entries: Entry[];
 }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [mode, setMode] = useState<"closed" | "view" | "new" | "edit">("closed");
   const [draft, setDraft] = useState<Draft>(blankDraft);
+  const [initial, setInitial] = useState("");
+  const [current, setCurrent] = useState(0);
   const [from, setFrom] = useState(period.from);
   const [to, setTo] = useState(period.to);
   const [filter, setFilter] = useState(query);
@@ -169,52 +189,39 @@ export function EntriesClient({
   }
 
   const selected = entries.find((e) => e.id === selectedId) ?? null;
-  const editing = mode === "new" || mode === "edit";
+  const readOnly = Boolean(selected?.closing);
   const accountLabel = useMemo(() => new Map(accounts.map((a) => [a.id, `${a.classification} - ${a.name}`])), [accounts]);
 
-  const totalD = sum(draft.debits);
-  const totalC = sum(draft.credits);
+  const partida = draft.partidas[Math.min(current, draft.partidas.length - 1)];
+  const lines = linesFromPartidas(draft.partidas);
+  const totalD = sum(lines.filter((l) => l.side === "D"));
+  const totalC = sum(lines.filter((l) => l.side === "C"));
   const diff = totalD - totalC;
+  const dirty = JSON.stringify(draft) !== initial;
 
-  const update = (patch: Partial<Draft>) => setDraft((d) => balanced({ ...d, ...patch }));
-  const setRow = (side: "debits" | "credits", i: number, patch: Partial<Row>) =>
-    setDraft((d) => balanced({ ...d, [side]: d[side].map((r, j) => (j === i ? { ...r, ...patch } : r)) }));
-
-  const setFormula = (formula: EntryFormula) =>
-    setDraft((d) => {
-      const multiD = formula === "Nx1" || formula === "NxN";
-      const multiC = formula === "1xN" || formula === "NxN";
-      return balanced({
-        ...d,
-        formula,
-        debits: multiD ? d.debits : [d.debits[0] ?? emptyRow()],
-        credits: multiC ? d.credits : [d.credits[0] ?? emptyRow()],
-      });
-    });
-
-  const select = (e: Entry) => {
-    if (editing) return;
-    setSelectedId(e.id);
-    setMode("view");
-    setDraft(draftFromEntry(e));
+  const start = (d: Draft, id: string | null) => {
+    setSelectedId(id);
+    setDraft(d);
+    setInitial(JSON.stringify(d));
+    setCurrent(0);
+    setOpen(true);
   };
+  const openEntry = (e: Entry) => start(draftFromEntry(e), e.id);
+  const openNew = () => start(blankDraft(), null);
+  const close = () => setOpen(false);
 
-  const close = () => {
-    setSelectedId(null);
-    setMode("closed");
-    setDraft(blankDraft());
+  const update = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
+  const setPartida = (patch: Partial<Partida>) =>
+    setDraft((d) => ({ ...d, partidas: d.partidas.map((p, i) => (i === current ? { ...p, ...patch } : p)) }));
+
+  const addPartida = () => {
+    // A nova partida já sugere o valor que falta para fechar débitos e créditos.
+    setDraft((d) => ({ ...d, partidas: [...d.partidas, { ...emptyPartida(), cents: Math.abs(diff) }] }));
+    setCurrent(draft.partidas.length);
   };
-
-  const entryIndex = selected ? entries.findIndex((e) => e.id === selected.id) : -1;
-  const goTo = (delta: number) => {
-    if (editing || entryIndex === -1) return;
-    const next = entries[entryIndex + delta];
-    if (next) select(next);
-  };
-
-  const cancel = () => {
-    setMode(selected ? "view" : "closed");
-    setDraft(selected ? draftFromEntry(selected) : blankDraft());
+  const removePartida = () => {
+    setDraft((d) => ({ ...d, partidas: d.partidas.filter((_, i) => i !== current) }));
+    setCurrent((c) => Math.max(0, Math.min(c, draft.partidas.length - 2)));
   };
 
   const setHistoryCode = (code: string) => {
@@ -222,28 +229,23 @@ export function EntriesClient({
     update({ historyCode: code, ...(h ? { description: h.description } : {}) });
   };
 
-  function save() {
-    const lines = [
-      ...draft.debits.map((r) => ({ accountId: r.accountId ?? "", side: "D" as const, cents: r.cents })),
-      ...draft.credits.map((r) => ({ accountId: r.accountId ?? "", side: "C" as const, cents: r.cents })),
-    ];
+  /** OK grava as alterações (se houver) e fecha. */
+  function confirm() {
+    if (readOnly || !dirty) return close();
     startTransition(async () => {
       const result = await saveEntry({
-        id: mode === "edit" ? draft.id : undefined,
+        id: draft.id,
         date: draft.date,
         historyCode: draft.historyCode ? Number(draft.historyCode) : null,
         description: draft.description,
         lines,
       });
-      if (toastResult(result, mode === "edit" ? "Lançamento atualizado." : `Lançamento nº ${result.ok ? result.data?.number : ""} gravado.`) && result.ok) {
-        setSelectedId(result.data!.id);
-        setMode("view");
-        setDraft((d) => ({ ...d, id: result.data!.id, number: result.data!.number }));
+      if (toastResult(result, draft.id ? "Lançamento atualizado." : `Lançamento nº ${result.ok ? result.data?.number : ""} gravado.`)) {
+        close();
       }
     });
   }
 
-  const visible = entries;
   const go = (changes: { pagina?: number; por?: number; de?: string; ate?: string; q?: string }) => {
     const p = new URLSearchParams({
       de: changes.de ?? period.from,
@@ -256,245 +258,227 @@ export function EntriesClient({
     router.push(`?${p.toString()}`);
   };
 
-  const multiDebit = draft.formula === "Nx1" || draft.formula === "NxN";
-  const multiCredit = draft.formula === "1xN" || draft.formula === "NxN";
-
-  const sidePanel = (side: "debits" | "credits") => {
-    const isDebit = side === "debits";
-    const multi = isDebit ? multiDebit : multiCredit;
-    const auto = !multi && draft.formula !== "NxN" && (isDebit ? multiCredit : multiDebit || draft.formula === "1x1");
-    return (
-      <div className="grid min-w-0 content-start gap-2">
-        <Label>{isDebit ? "Débito" : "Crédito"}</Label>
-        {draft[side].map((row, i) => (
-          <div key={i} className="grid min-w-0 grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_9rem_auto]">
-            <AccountPicker
-              accounts={accounts}
-              value={row.accountId}
-              onChange={(accountId) => setRow(side, i, { accountId })}
-              className={cn("col-span-2 min-w-0 sm:col-span-1", !editing && "pointer-events-none opacity-90")}
-              placeholder={isDebit ? "Conta a débito" : "Conta a crédito"}
-            />
-            <MoneyInput
-              value={row.cents}
-              disabled={!editing || auto}
-              onChange={(cents) => setRow(side, i, { cents })}
-              aria-label={`Valor ${isDebit ? "débito" : "crédito"}`}
-              title={auto ? "Calculado automaticamente" : undefined}
-            />
-            {multi && editing ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label="Remover linha"
-                disabled={draft[side].length === 1}
-                onClick={() => update({ [side]: draft[side].filter((_, j) => j !== i) } as Partial<Draft>)}
-              >
-                <X />
-              </Button>
-            ) : (
-              <span className="w-9" />
-            )}
-          </div>
-        ))}
-        {multi && editing && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="justify-self-start"
-            onClick={() => update({ [side]: [...draft[side], emptyRow()] } as Partial<Draft>)}
-          >
-            <Plus /> Adicionar {isDebit ? "débito" : "crédito"}
-          </Button>
-        )}
-      </div>
-    );
-  };
+  const total = draft.partidas.length;
 
   return (
     <div className="grid gap-6">
-      <Dialog open={mode !== "closed"} onOpenChange={(o) => !o && close()}>
-      <DialogContent className="max-h-[90vh] overflow-x-hidden overflow-y-auto sm:max-w-3xl">
-        <CardHeader className="flex flex-col gap-3 p-0">
-          <div className="flex flex-wrap items-center gap-2">
-            {mode !== "new" && (
-              <div className="flex shrink-0 gap-1">
-                <Button variant="outline" size="icon" disabled={editing || entryIndex <= 0} onClick={() => goTo(-1)} aria-label="Lançamento anterior">
-                  <ChevronLeft />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  disabled={editing || entryIndex === -1 || entryIndex >= entries.length - 1}
-                  onClick={() => goTo(1)}
-                  aria-label="Próximo lançamento"
-                >
-                  <ChevronRight />
-                </Button>
-              </div>
-            )}
-            <DialogTitle className="flex min-w-0 flex-1 items-center gap-2">
-              <span className="truncate">{mode === "new" ? "Novo lançamento" : `Lançamento nº ${draft.number ?? ""}`}</span>
-              {selected?.closing && mode === "view" && (
-                <Badge variant="secondary" className="shrink-0">
+      <Dialog open={open} onOpenChange={(o) => !o && close()}>
+        <DialogContent className="grid max-h-[90vh] gap-0 overflow-x-hidden overflow-y-auto p-0 sm:max-w-3xl">
+          <div className="grid gap-x-6 gap-y-1 border-b bg-muted/50 px-4 py-3 pr-12 text-sm sm:grid-cols-[auto_1fr_auto]">
+            <div>
+              <div className="text-xs font-semibold">Lançamento nº</div>
+              <DialogTitle className="text-sm font-normal tabular-nums">{draft.number ?? "Novo"}</DialogTitle>
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-semibold">Descrição</div>
+              <div className="truncate">{draft.description || "—"}</div>
+            </div>
+            <div>
+              <div className="text-xs font-semibold">Data</div>
+              <div className="tabular-nums">{draft.date ? formatDate(draft.date) : "—"}</div>
+            </div>
+          </div>
+
+          {(!readOnly || total > 1) && (
+            <div className="flex flex-wrap items-center gap-1 border-b px-3 py-1.5">
+              {!readOnly && (
+                <>
+                  <Button type="button" variant="ghost" size="icon" onClick={addPartida} aria-label="Nova partida" title="Nova partida">
+                    <Plus className="text-primary" />
+                  </Button>
+                  {total > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={removePartida}
+                      aria-label="Remover partida"
+                      title="Remover partida"
+                    >
+                      <X className="text-destructive" />
+                    </Button>
+                  )}
+                </>
+              )}
+              {total > 1 && (
+                <>
+                  {!readOnly && <span className="mx-1 h-5 w-px bg-border" />}
+                  <Button type="button" variant="ghost" size="icon" disabled={current === 0} onClick={() => setCurrent(0)} aria-label="Primeira partida">
+                    <ChevronFirst />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={current === 0}
+                    onClick={() => setCurrent((c) => c - 1)}
+                    aria-label="Partida anterior"
+                  >
+                    <ChevronLeft />
+                  </Button>
+                  <span className="px-1 text-xs text-muted-foreground tabular-nums">
+                    Partida {current + 1} de {total}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={current >= total - 1}
+                    onClick={() => setCurrent((c) => c + 1)}
+                    aria-label="Próxima partida"
+                  >
+                    <ChevronRight />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={current >= total - 1}
+                    onClick={() => setCurrent(total - 1)}
+                    aria-label="Última partida"
+                  >
+                    <ChevronLast />
+                  </Button>
+                </>
+              )}
+              {readOnly && (
+                <Badge variant="secondary" className="ml-auto">
                   <Lock /> Zeramento
                 </Badge>
               )}
-              {mode === "edit" && (
-                <Badge variant="outline" className="shrink-0">
-                  Editando
-                </Badge>
-              )}
-            </DialogTitle>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            {editing ? (
-              <>
-                <Button variant="outline" onClick={cancel} disabled={pending}>
-                  <X /> Cancelar
-                </Button>
-                <Button onClick={save} disabled={pending || diff !== 0 || totalD === 0}>
-                  <Save /> Gravar
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  onClick={() => {
-                    setMode("new");
-                    setDraft(blankDraft(selected?.date));
-                  }}
-                >
-                  <FilePlus2 /> Novo
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={!selected}
-                  onClick={() => {
-                    if (!selected) return;
-                    const copy = draftFromEntry(selected);
-                    setMode("new");
-                    setDraft({ ...copy, id: undefined, number: undefined });
-                  }}
-                >
-                  <CopyPlus /> Novo a partir deste
-                </Button>
-                <Button variant="outline" disabled={!selected || selected.closing} onClick={() => setMode("edit")}>
-                  <Pencil /> Editar
-                </Button>
-                <ConfirmAction
-                  title="Excluir lançamento?"
-                  description={selected ? `Lançamento nº ${selected.number} - ${selected.description}` : ""}
-                  onConfirm={async () => {
-                    if (!selected) return;
-                    if (toastResult(await deleteEntry(selected.id), "Lançamento excluído.")) {
-                      const next = entries.find((e) => e.id !== selected.id);
-                      setSelectedId(next?.id ?? null);
-                      setDraft(next ? draftFromEntry(next) : blankDraft());
-                      setMode(next ? "view" : "closed");
-                    }
-                  }}
-                >
-                  <Button variant="outline" disabled={!selected || selected.closing}>
-                    <Trash2 className="text-destructive" /> Excluir
-                  </Button>
-                </ConfirmAction>
-              </>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="grid min-w-0 gap-4 p-0 pt-4">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-[10rem_8rem_1fr_16rem]">
-            <div className="grid gap-2">
-              <Label htmlFor="date">Data</Label>
-              <Input id="date" type="date" value={draft.date} disabled={!editing} onChange={(e) => update({ date: e.target.value })} />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="history">Cód. histórico</Label>
-              <div className="flex gap-1">
-                <Input
-                  id="history"
-                  inputMode="numeric"
-                  value={draft.historyCode}
-                  disabled={!editing}
-                  onChange={(e) => setHistoryCode(e.target.value.replace(/\D/g, ""))}
+          )}
+
+          <Tabs defaultValue="identificacao" className="px-4 pt-3">
+            <TabsList>
+              <TabsTrigger value="identificacao">Identificação</TabsTrigger>
+            </TabsList>
+            <TabsContent value="identificacao" className="grid min-w-0 gap-4 pt-2">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-[10rem_9rem_1fr]">
+                <div className="grid gap-2">
+                  <Label htmlFor="date">Data</Label>
+                  <Input id="date" type="date" value={draft.date} disabled={readOnly} onChange={(e) => update({ date: e.target.value })} />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="history">Histórico</Label>
+                  <div className="flex gap-1">
+                    <Input
+                      id="history"
+                      inputMode="numeric"
+                      value={draft.historyCode}
+                      disabled={readOnly}
+                      onChange={(e) => setHistoryCode(e.target.value.replace(/\D/g, ""))}
+                    />
+                    {!readOnly && histories.length > 0 && <HistoryPicker histories={histories} onPick={setHistoryCode} />}
+                  </div>
+                </div>
+                <div className="col-span-2 grid gap-2 sm:col-span-1">
+                  <Label htmlFor="description">Descrição</Label>
+                  <Input
+                    id="description"
+                    value={draft.description}
+                    disabled={readOnly}
+                    onChange={(e) => update({ description: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="debit-account" className="font-semibold">
+                  Conta débito
+                </Label>
+                <AccountPicker
+                  id="debit-account"
+                  accounts={accounts}
+                  value={partida.debitAccountId}
+                  onChange={(debitAccountId) => setPartida({ debitAccountId })}
+                  allowClear={total > 1}
+                  className={cn("min-w-0", readOnly && "pointer-events-none opacity-90")}
+                  placeholder="Conta a débito"
                 />
-                {editing && histories.length > 0 && (
-                  <HistoryPicker histories={histories} onPick={setHistoryCode} />
-                )}
               </div>
-            </div>
-            <div className="col-span-2 grid gap-2 lg:col-span-1">
-              <Label htmlFor="description">Descrição</Label>
-              <Input
-                id="description"
-                value={draft.description}
-                disabled={!editing}
-                onChange={(e) => update({ description: e.target.value })}
-              />
-            </div>
-            <div className="col-span-2 grid gap-2 lg:col-span-1">
-              <Label>Fórmula</Label>
-              <Select value={draft.formula} onValueChange={(v) => setFormula(v as EntryFormula)} disabled={!editing}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(FORMULA_LABELS) as EntryFormula[]).map((f) => (
-                    <SelectItem key={f} value={f}>
-                      {FORMULA_LABELS[f]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-            {sidePanel("debits")}
-            {sidePanel("credits")}
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 rounded-lg border bg-muted/40 p-3 text-xs tabular-nums sm:gap-3 sm:text-sm">
-            <div>
-              <div className="text-muted-foreground">Total de débitos</div>
-              <div className="text-sm font-semibold sm:text-lg">{formatMoney(totalD)}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Total de créditos</div>
-              <div className="text-sm font-semibold sm:text-lg">{formatMoney(totalC)}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Diferença</div>
-              <div className={cn("text-sm font-semibold sm:text-lg", diff !== 0 ? "text-destructive" : "text-primary")}>
-                {formatMoney(Math.abs(diff))}
-                {diff !== 0 && <span className="ml-1 hidden text-xs sm:inline">({diff > 0 ? "débito maior" : "crédito maior"})</span>}
+              <div className="grid gap-2">
+                <Label htmlFor="credit-account" className="font-semibold">
+                  Conta crédito
+                </Label>
+                <AccountPicker
+                  id="credit-account"
+                  accounts={accounts}
+                  value={partida.creditAccountId}
+                  onChange={(creditAccountId) => setPartida({ creditAccountId })}
+                  allowClear={total > 1}
+                  className={cn("min-w-0", readOnly && "pointer-events-none opacity-90")}
+                  placeholder="Conta a crédito"
+                />
               </div>
-            </div>
-          </div>
+              <div className="grid gap-2 sm:w-56">
+                <Label htmlFor="value" className="font-semibold">
+                  Valor (R$)
+                </Label>
+                <MoneyInput id="value" value={partida.cents} disabled={readOnly} onChange={(cents) => setPartida({ cents })} />
+              </div>
 
-          <AttachmentsPanel entryType="lancamento" entryId={draft.id} attachments={selected?.attachments ?? []} />
-        </CardContent>
-      </DialogContent>
+              <fieldset className="grid grid-cols-3 gap-2 rounded-md border px-3 pb-2 text-xs tabular-nums sm:text-sm">
+                <legend className="px-1 text-xs text-muted-foreground">Status</legend>
+                <div>
+                  <span className="text-muted-foreground">Débitos x Créditos: </span>
+                  <span className={cn("font-semibold", diff !== 0 ? "text-destructive" : "text-primary")}>{formatMoney(Math.abs(diff))}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Débitos: </span>
+                  <span className="font-semibold">{formatMoney(totalD)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Créditos: </span>
+                  <span className="font-semibold">{formatMoney(totalC)}</span>
+                </div>
+              </fieldset>
+
+              <AttachmentsPanel entryType="lancamento" entryId={draft.id} attachments={selected?.attachments ?? []} />
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter className="border-t px-4 py-3 sm:justify-between">
+            {draft.id && !readOnly ? (
+              <ConfirmAction
+                title="Excluir lançamento?"
+                description={`Lançamento nº ${draft.number} - ${draft.description}`}
+                onConfirm={async () => {
+                  if (toastResult(await deleteEntry(draft.id!), "Lançamento excluído.")) close();
+                }}
+              >
+                <Button type="button" variant="ghost" className="text-destructive">
+                  <Trash2 /> Excluir
+                </Button>
+              </ConfirmAction>
+            ) : (
+              <span />
+            )}
+            <div className="grid grid-cols-2 gap-2 sm:flex">
+              <Button
+                type="button"
+                onClick={confirm}
+                disabled={pending || (!readOnly && dirty && (diff !== 0 || totalD === 0))}
+                title={!readOnly && dirty && diff !== 0 ? "Débitos e créditos precisam fechar" : undefined}
+                className="sm:min-w-24"
+              >
+                OK
+              </Button>
+              <Button type="button" variant="outline" onClick={close} disabled={pending} className="sm:min-w-24">
+                Cancelar
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
 
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
           <CardTitle>Lançamentos do período</CardTitle>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
-            {mode === "closed" && (
-              <Button
-                className="col-span-2 sm:order-first"
-                onClick={() => {
-                  setMode("new");
-                  setDraft(blankDraft());
-                }}
-              >
-                <FilePlus2 /> Novo lançamento
-              </Button>
-            )}
+            <Button className="col-span-2 sm:order-first" onClick={openNew}>
+              <FilePlus2 /> Novo lançamento
+            </Button>
             <Input
               className="col-span-2 sm:w-44"
               placeholder="Filtrar descrição ou nº"
@@ -535,23 +519,23 @@ export function EntriesClient({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visible.length === 0 && (
+                {entries.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center text-muted-foreground">
                       Nenhum lançamento entre {formatDate(period.from)} e {formatDate(period.to)}.
                     </TableCell>
                   </TableRow>
                 )}
-                {visible.map((e) => {
+                {entries.map((e) => {
                   const d = e.lines.filter((l) => l.side === "D");
                   const c = e.lines.filter((l) => l.side === "C");
                   const label = (ls: Line[]) => (ls.length === 1 ? accountLabel.get(ls[0].accountId) : `Vários (${ls.length})`);
                   return (
                     <TableRow
                       key={e.id}
-                      onClick={() => select(e)}
-                      data-state={e.id === selectedId ? "selected" : undefined}
-                      className={cn("cursor-pointer", editing && "cursor-not-allowed opacity-60")}
+                      onClick={() => openEntry(e)}
+                      data-state={open && e.id === selectedId ? "selected" : undefined}
+                      className="cursor-pointer"
                     >
                       <TableCell onClick={(evt) => evt.stopPropagation()}>
                         {!e.closing && (
