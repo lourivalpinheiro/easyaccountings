@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
       },
     },
   },
-  serverExternalPackages: ["postgres", "@react-pdf/renderer"],
+  serverExternalPackages: ["pg", "@react-pdf/renderer"],
   poweredByHeader: false,
   experimental: {
     serverActions: {

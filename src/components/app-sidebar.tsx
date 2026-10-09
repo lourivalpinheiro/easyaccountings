@@ -100,6 +100,7 @@ const FINANCE: Section[] = [
       { title: "Relatório", href: "/financeiro/relatorio" },
       { title: "Saúde de caixa", href: "/financeiro/saude" },
       { title: "Aplicações financeiras", href: "/financeiro/aplicacoes" },
+      { title: "Relatório de aplicações", href: "/financeiro/aplicacoes/relatorio" },
     ],
   },
   {

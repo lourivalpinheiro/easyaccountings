@@ -1,19 +1,31 @@
 import "server-only";
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import { attachDatabasePool } from "@vercel/functions";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import * as schema from "./schema";
 
-const globalForDb = globalThis as unknown as { pgClient?: postgres.Sql };
+const globalForDb = globalThis as unknown as { pgPool?: Pool };
 
-// O pooler do Supabase em modo transação não suporta prepared statements.
-// max baixo e idle_timeout curto: em dev o servidor é reiniciado com frequência (HMR/restart),
-// então conexões ociosas devem devolver a vaga ao pooler rápido em vez de ficarem presas.
-const client =
-  globalForDb.pgClient ??
-  postgres(process.env.DATABASE_URL!, { prepare: false, max: 3, idle_timeout: 20 });
+// Pool do node-postgres com o pooler do Supabase (modo transação; o pg não usa prepared statements nomeados).
+// Na Vercel a função é congelada entre requisições e conexões ociosas podem morrer nesse intervalo: o
+// attachDatabasePool mantém a instância viva até as ociosas serem fechadas, evitando consultas que travam
+// numa conexão morta. Os timeouts garantem erro (em vez de espera infinita) se a rede falhar mesmo assim.
+const pool =
+  globalForDb.pgPool ??
+  new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 3,
+    idleTimeoutMillis: 5_000,
+    connectionTimeoutMillis: 10_000,
+    query_timeout: 30_000,
+    keepAlive: true,
+  });
 
-if (process.env.NODE_ENV !== "production") globalForDb.pgClient = client;
+attachDatabasePool(pool);
 
-export const db = drizzle(client, { schema });
+// Em dev o servidor recarrega módulos com frequência: reaproveita o mesmo pool.
+if (process.env.NODE_ENV !== "production") globalForDb.pgPool = pool;
+
+export const db = drizzle(pool, { schema });
 export type Db = typeof db;
 export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];

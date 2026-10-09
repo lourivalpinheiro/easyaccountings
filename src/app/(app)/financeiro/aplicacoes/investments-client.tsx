@@ -1,6 +1,7 @@
 "use client";
 
-import { ChartArea, LineChart, Pencil, PiggyBank, Plus, Trash2 } from "lucide-react";
+import { ChartArea, FileText, LineChart, Pencil, PiggyBank, Plus, Trash2, TrendingUp, Wallet } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { BulkDeleteBar } from "@/components/bulk-delete-bar";
 import { ActiveFilters, ColumnHead, useTableControls } from "@/components/column-head";
@@ -23,7 +24,7 @@ import { todayIso } from "@/lib/period";
 import type { Column } from "@/lib/table-controls";
 import { toastResult } from "@/lib/toast-result";
 import { cn } from "@/lib/utils";
-import type { InvestmentMovement } from "@/lib/investment-series";
+import { investmentSeries, type InvestmentMovement } from "@/lib/investment-series";
 import { deleteInvestments, deleteValuation, saveInvestment, saveValuation } from "./actions";
 import { InvestmentDetail } from "./investment-detail";
 
@@ -84,7 +85,24 @@ export function InvestmentsClient({
   const [pending, startTransition] = useTransition();
   const table = useTableControls(investments, COLUMNS);
   const { rows, pagination } = usePagination(table.rows);
-  const total = useMemo(() => investments.reduce((s, i) => s + i.balance, 0), [investments]);
+  // Capital aplicado e rendimentos de cada aplicação (o saldo inicial informado conta como capital, não como rendimento).
+  const totals = useMemo(() => {
+    let capital = 0;
+    let gain = 0;
+    let balance = 0;
+    for (const i of investments) {
+      const series = investmentSeries(
+        movements.filter((m) => m.investmentId === i.id),
+        valuations.filter((v) => v.investmentId === i.id),
+        today,
+      );
+      const last = series[series.length - 1];
+      capital += last?.capital ?? 0;
+      gain += last?.gain ?? 0;
+      balance += i.balance;
+    }
+    return { capital, gain, balance };
+  }, [investments, movements, valuations, today]);
   const history = valuing ? valuations.filter((v) => v.investmentId === valuing.id) : [];
 
   function submit(e: React.FormEvent) {
@@ -105,26 +123,39 @@ export function InvestmentsClient({
 
   return (
     <div className="grid gap-4 sm:gap-6">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Card className="gap-1 py-4">
-          <CardHeader className="flex flex-row items-center justify-between px-4">
-            <CardDescription>Total aplicado</CardDescription>
-            <PiggyBank className="size-4 text-primary" />
-          </CardHeader>
-          <CardContent className="px-4 text-2xl font-semibold tabular-nums">{formatMoney(total)}</CardContent>
-        </Card>
-        <Card className="gap-1 py-4">
-          <CardHeader className="flex flex-row items-center justify-between px-4">
-            <CardDescription>Aplicações ativas</CardDescription>
-            <LineChart className="size-4 text-primary" />
-          </CardHeader>
-          <CardContent className="px-4 text-2xl font-semibold tabular-nums">{investments.filter((i) => i.active).length}</CardContent>
-        </Card>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[
+          { label: "Total aplicado", value: formatMoney(totals.capital), hint: `saldo atual de ${formatMoney(totals.balance)}`, icon: PiggyBank },
+          {
+            label: "Total de rendimentos",
+            value: `${totals.gain < 0 ? "-" : ""}${formatMoney(Math.abs(totals.gain))}`,
+            hint: totals.capital > 0 ? `${((totals.gain / totals.capital) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% sobre o aplicado` : undefined,
+            icon: TrendingUp,
+            tone: totals.gain < 0 ? "text-destructive" : totals.gain > 0 ? "text-emerald-600 dark:text-emerald-400" : undefined,
+          },
+          { label: "Aplicações ativas", value: String(investments.filter((i) => i.active).length), hint: `${investments.length} cadastrada(s)`, icon: Wallet },
+        ].map((c) => (
+          <Card key={c.label} className="gap-1 py-4">
+            <CardHeader className="flex flex-row items-center justify-between px-4">
+              <CardDescription>{c.label}</CardDescription>
+              <c.icon className="size-4 text-primary" />
+            </CardHeader>
+            <CardContent className={cn("px-4 text-2xl font-semibold tabular-nums", c.tone)}>
+              {c.value}
+              {c.hint && <div className="text-xs font-normal text-muted-foreground">{c.hint}</div>}
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <Card>
         <CardContent className="grid gap-3">
           <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/financeiro/aplicacoes/relatorio">
+                <FileText /> Emitir relatório
+              </Link>
+            </Button>
             <Button onClick={() => setDraft({ name: "", kind: "cdb", institution: "", notes: "", active: true })}>
               <Plus /> Nova aplicação
             </Button>

@@ -150,7 +150,7 @@ function FilterEditor({
       <div className="text-sm font-medium">Filtrar {spec.label.toLowerCase()}</div>
       {type === "text" && <Input autoFocus placeholder="Contém..." value={q} onChange={(e) => setQ(e.target.value)} />}
       {type === "date" && (
-        <PeriodPresets size="xs" value={{ from: min, to: max }} onSelect={(p) => onApply({ kind: "range", min: p.from, max: p.to })} />
+        <PeriodPresets value={{ from: min, to: max }} onSelect={(p) => onApply({ kind: "range", min: p.from, max: p.to })} />
       )}
       {(type === "number" || type === "money" || type === "date") && (
         <div className="grid grid-cols-2 gap-2">

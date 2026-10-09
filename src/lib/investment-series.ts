@@ -58,3 +58,22 @@ export function investmentSeries(movements: InvestmentMovement[], valuations: In
   }
   return out;
 }
+
+/** Posição de uma aplicação numa data: saldo, capital aplicado e ganho de capital. */
+export function positionAt(date: string, movements: InvestmentMovement[], valuations: InvestmentValuation[]) {
+  const opening = openingCapital(movements, valuations);
+  const contributed = movements.filter((m) => m.date <= date).reduce((s, m) => s + signed(m), 0);
+  const capital = contributed + (opening.date && opening.date <= date ? opening.cents : 0);
+  const balance = balanceAt(date, movements, valuations);
+  return { balance, capital, gain: balance - capital };
+}
+
+/** Fins de mês (AAAA-MM-DD) entre duas datas; o último ponto é a própria data final. */
+export function monthEnds(from: string, to: string) {
+  const out: string[] = [];
+  for (let ym = from.slice(0, 7); ym <= to.slice(0, 7); ym = nextMonth(ym)) {
+    const end = monthEnd(ym);
+    out.push(end < to ? end : to);
+  }
+  return out;
+}

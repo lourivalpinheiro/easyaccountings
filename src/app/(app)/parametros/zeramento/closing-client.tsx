@@ -1,16 +1,15 @@
 "use client";
 
-import { Play, Save, Search, Undo2 } from "lucide-react";
+import { Play, Save, Undo2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { AccountPicker, type PickerAccount } from "@/components/account-picker";
 import { ConfirmAction } from "@/components/confirm-button";
-import { PeriodPresets } from "@/components/period-presets";
+import { PeriodPicker } from "@/components/period-presets";
 import { Badge } from "@/components/ui/badge";
 import { TablePagination, usePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatBalance, formatDate, formatDateTimeBrasilia, formatMoney } from "@/lib/accounting";
@@ -52,8 +51,6 @@ export function ClosingClient({
 }) {
   const router = useRouter();
   const [settings, setSettings] = useState(initial);
-  const [from, setFrom] = useState(period.from);
-  const [to, setTo] = useState(period.to);
   const [pending, startTransition] = useTransition();
   const [batchFrom, setBatchFrom] = useState("");
   const [batchTo, setBatchTo] = useState("");
@@ -103,28 +100,7 @@ export function ClosingClient({
           <CardDescription>Os lançamentos serão gerados na data final do período.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <div className="grid grid-cols-2 items-end gap-3 sm:flex sm:flex-wrap">
-            <div className="grid gap-2">
-              <Label htmlFor="from">De</Label>
-              <Input id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="to">Até</Label>
-              <Input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-            </div>
-            <PeriodPresets
-              className="col-span-2"
-              value={period}
-              onSelect={(p) => {
-                setFrom(p.from);
-                setTo(p.to);
-                router.push(`?de=${p.from}&ate=${p.to}`);
-              }}
-            />
-            <Button variant="outline" className="col-span-2 sm:col-span-1" onClick={() => router.push(`?de=${from}&ate=${to}`)}>
-              <Search /> Visualizar saldos
-            </Button>
-          </div>
+          <PeriodPicker value={period} onChange={(p) => router.push(`?de=${p.from}&ate=${p.to}`)} />
           <ActiveFilters controls={previewTable.controls} />
           <Table>
             <TableHeader>
@@ -171,7 +147,7 @@ export function ClosingClient({
               toastResult(r, "Zeramento executado.");
             }}
           >
-            <Button disabled={preview.length === 0 || from !== period.from || to !== period.to}>
+            <Button disabled={preview.length === 0}>
               <Play /> Executar zeramento
             </Button>
           </ConfirmAction>
@@ -181,18 +157,17 @@ export function ClosingClient({
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
           <CardTitle>Zeramentos realizados</CardTitle>
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            <PeriodPresets
-              className="col-span-2"
-              value={{ from: batchFrom, to: batchTo }}
-              onSelect={(p) => {
-                setBatchFrom(p.from);
-                setBatchTo(p.to);
-              }}
-            />
-            <Input type="date" className="sm:w-40" value={batchFrom} onChange={(e) => setBatchFrom(e.target.value)} aria-label="De" placeholder="De" />
-            <Input type="date" className="sm:w-40" value={batchTo} onChange={(e) => setBatchTo(e.target.value)} aria-label="Até" placeholder="Até" />
-          </div>
+          <PeriodPicker
+            value={batchFrom && batchTo ? { from: batchFrom, to: batchTo } : null}
+            onChange={(p) => {
+              setBatchFrom(p.from);
+              setBatchTo(p.to);
+            }}
+            onClear={() => {
+              setBatchFrom("");
+              setBatchTo("");
+            }}
+          />
         </CardHeader>
         <CardContent>
           <ActiveFilters controls={batchTable.controls} />

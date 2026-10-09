@@ -21,7 +21,7 @@ import { BulkDeleteBar } from "@/components/bulk-delete-bar";
 import { ActiveFilters, ColumnHead, useUrlTableControls } from "@/components/column-head";
 import { ConfirmAction } from "@/components/confirm-button";
 import { MoneyInput } from "@/components/money-input";
-import { PeriodPresets } from "@/components/period-presets";
+import { PeriodPicker } from "@/components/period-presets";
 import { Badge } from "@/components/ui/badge";
 import { TablePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
@@ -175,8 +175,6 @@ export function EntriesClient({
   const [draft, setDraft] = useState<Draft>(blankDraft);
   const [initial, setInitial] = useState("");
   const [current, setCurrent] = useState(0);
-  const [from, setFrom] = useState(period.from);
-  const [to, setTo] = useState(period.to);
   const [filter, setFilter] = useState(query);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
@@ -492,20 +490,10 @@ export function EntriesClient({
               placeholder="Filtrar descrição ou nº"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && go({ de: from, ate: to, q: filter.trim(), pagina: 1 })}
+              onKeyDown={(e) => e.key === "Enter" && go({ q: filter.trim(), pagina: 1 })}
             />
-            <PeriodPresets
-              className="col-span-2"
-              value={period}
-              onSelect={(p) => {
-                setFrom(p.from);
-                setTo(p.to);
-                go({ de: p.from, ate: p.to, q: filter.trim(), pagina: 1 });
-              }}
-            />
-            <Input type="date" className="sm:w-40" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="De" />
-            <Input type="date" className="sm:w-40" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Até" />
-            <Button variant="outline" className="col-span-2 sm:col-span-1" onClick={() => go({ de: from, ate: to, q: filter.trim(), pagina: 1 })}>
+            <PeriodPicker className="col-span-2" value={period} onChange={(p) => go({ de: p.from, ate: p.to, q: filter.trim(), pagina: 1 })} />
+            <Button variant="outline" className="col-span-2 sm:col-span-1" onClick={() => go({ q: filter.trim(), pagina: 1 })}>
               <Search /> Buscar
             </Button>
           </div>

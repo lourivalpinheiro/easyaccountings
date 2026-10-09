@@ -22,7 +22,7 @@ import { ActiveFilters, ColumnHead, useUrlTableControls } from "@/components/col
 import { BulkDeleteBar } from "@/components/bulk-delete-bar";
 import { ConfirmAction } from "@/components/confirm-button";
 import { MoneyInput } from "@/components/money-input";
-import { PeriodPresets } from "@/components/period-presets";
+import { PeriodPicker } from "@/components/period-presets";
 import { TablePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -126,8 +126,6 @@ export function CashFlowClient({
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [from, setFrom] = useState(period.from);
-  const [to, setTo] = useState(period.to);
   const [q, setQ] = useState(query);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
@@ -152,8 +150,8 @@ export function CashFlowClient({
   const go = (changes: { pagina?: number; por?: number; de?: string; ate?: string } = {}) => {
     // Mantém ordenação e filtros de coluna já presentes na URL.
     const p = new URLSearchParams(window.location.search);
-    p.set("de", changes.de ?? from);
-    p.set("ate", changes.ate ?? to);
+    p.set("de", changes.de ?? period.from);
+    p.set("ate", changes.ate ?? period.to);
     p.set("pagina", String(changes.pagina ?? 1));
     p.set("por", String(changes.por ?? paging.pageSize));
     if (q.trim()) p.set("q", q.trim());
@@ -241,17 +239,7 @@ export function CashFlowClient({
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && go()}
             />
-            <PeriodPresets
-              className="col-span-2"
-              value={period}
-              onSelect={(p) => {
-                setFrom(p.from);
-                setTo(p.to);
-                go({ de: p.from, ate: p.to });
-              }}
-            />
-            <Input type="date" className="sm:w-40" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="De" />
-            <Input type="date" className="sm:w-40" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Até" />
+            <PeriodPicker className="col-span-2" value={period} onChange={(p) => go({ de: p.from, ate: p.to })} />
             <Button variant="outline" className="col-span-2 sm:col-span-1" onClick={() => go()}>
               <Search /> Buscar
             </Button>
