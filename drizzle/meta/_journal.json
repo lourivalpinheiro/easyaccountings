@@ -57,6 +57,27 @@
       "when": 1791502191792,
       "tag": "0007_conciliacao_ofx_knots",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791505557181,
+      "tag": "0008_totp_e_acesso_empresas",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791505569781,
+      "tag": "0009_remove_mfa_challenges",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791505969923,
+      "tag": "0010_empresa_fixada",
+      "breakpoints": true
     }
   ]
 }

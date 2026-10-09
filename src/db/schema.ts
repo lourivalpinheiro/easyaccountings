@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   date,
   index,
@@ -8,6 +9,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -46,6 +48,10 @@ export const profiles = pgTable("profiles", {
   active: boolean("active").notNull().default(true),
   /** Caminho da foto no bucket "avatars" (não a URL pronta). */
   avatarPath: text("avatar_path"),
+  /** Segredo TOTP (Base32) do app autenticador; nulo = ainda não configurou o segundo fator. */
+  totpSecret: text("totp_secret"),
+  /** Empresa que abre automaticamente ao entrar no sistema (se o usuário ainda tiver acesso a ela). */
+  pinnedCompanyId: uuid("pinned_company_id").references((): AnyPgColumn => companies.id, { onDelete: "set null" }),
   ...timestamps,
 }).enableRLS();
 
@@ -67,6 +73,20 @@ export const companies = pgTable("companies", {
   periodLockedUntil: date("period_locked_until"),
   ...timestamps,
 }).enableRLS();
+
+/** Quais empresas cada usuário "user" pode acessar; administradores sempre acessam todas. */
+export const userCompanies = pgTable(
+  "user_companies",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.companyId] }), index("user_companies_company").on(t.companyId)],
+).enableRLS();
 
 /** Natureza e numeração inicial de cada grupo de contas, por empresa. */
 export const accountGroupSettings = pgTable(
@@ -237,22 +257,6 @@ export const budgetItems = pgTable(
     amount: numeric("amount", { precision: 18, scale: 2 }).notNull(),
   },
   (t) => [uniqueIndex("budget_items_budget_account").on(t.budgetId, t.accountId)],
-).enableRLS();
-
-/** Códigos de verificação em dois fatores enviados por e-mail. */
-export const mfaChallenges = pgTable(
-  "mfa_challenges",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id").notNull(),
-    sessionId: text("session_id").notNull(),
-    codeHash: text("code_hash").notNull(),
-    attempts: integer("attempts").notNull().default(0),
-    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    usedAt: timestamp("used_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => [index("mfa_challenges_session").on(t.sessionId)],
 ).enableRLS();
 
 /** Módulo financeiro: entradas e saídas do fluxo de caixa. */

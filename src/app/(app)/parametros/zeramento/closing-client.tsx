@@ -2,7 +2,7 @@
 
 import { Play, Save, Search, Undo2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { AccountPicker, type PickerAccount } from "@/components/account-picker";
 import { ConfirmAction } from "@/components/confirm-button";
 import { Badge } from "@/components/ui/badge";
@@ -40,8 +40,13 @@ export function ClosingClient({
   const [from, setFrom] = useState(period.from);
   const [to, setTo] = useState(period.to);
   const [pending, startTransition] = useTransition();
+  const [batchFrom, setBatchFrom] = useState("");
+  const [batchTo, setBatchTo] = useState("");
   const previewPage = usePagination(preview);
-  const batchPage = usePagination(batches, 10);
+  const filteredBatches = useMemo(() => {
+    return batches.filter((b) => (!batchFrom || b.endDate >= batchFrom) && (!batchTo || b.startDate <= batchTo));
+  }, [batches, batchFrom, batchTo]);
+  const batchPage = usePagination(filteredBatches, 10);
   const result = -preview.reduce((s, r) => s + r.balance, 0);
 
   return (
@@ -147,8 +152,12 @@ export function ClosingClient({
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
           <CardTitle>Zeramentos realizados</CardTitle>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <Input type="date" className="sm:w-40" value={batchFrom} onChange={(e) => setBatchFrom(e.target.value)} aria-label="De" placeholder="De" />
+            <Input type="date" className="sm:w-40" value={batchTo} onChange={(e) => setBatchTo(e.target.value)} aria-label="Até" placeholder="Até" />
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -161,10 +170,10 @@ export function ClosingClient({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {batches.length === 0 && (
+              {filteredBatches.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center text-muted-foreground">
-                    Nenhum zeramento realizado.
+                    {batches.length === 0 ? "Nenhum zeramento realizado." : "Nenhum zeramento encontrado."}
                   </TableCell>
                 </TableRow>
               )}

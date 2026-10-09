@@ -50,3 +50,12 @@ export async function removeAvatar(): Promise<ActionResult> {
     revalidatePath("/", "layout");
   });
 }
+
+/** Empresa que abre sozinha ao entrar no sistema; null = volta a abrir a primeira acessível. */
+export async function setPinnedCompany(companyId: string | null): Promise<ActionResult> {
+  const user = await requireUser();
+  return run(async () => {
+    await db.update(profiles).set({ pinnedCompanyId: companyId }).where(eq(profiles.id, user.id));
+    revalidatePath("/", "layout");
+  });
+}

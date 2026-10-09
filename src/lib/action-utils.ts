@@ -11,7 +11,7 @@ export async function companyAction<T>(
   fn: (ctx: { companyId: string; userId: string }) => Promise<T>,
 ): Promise<ActionResult<T>> {
   const user = await requireUser();
-  const company = await getActiveCompany();
+  const company = await getActiveCompany(user);
   if (!company) return { ok: false, error: "Selecione uma empresa." };
   return run(() => fn({ companyId: company.id, userId: user.id }));
 }

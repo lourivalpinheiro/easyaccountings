@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Building2, Pencil, Plus, Search, ShieldOff, Trash2 } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { BulkDeleteBar } from "@/components/bulk-delete-bar";
 import { ConfirmAction } from "@/components/confirm-button";
@@ -9,23 +9,64 @@ import { TablePagination, usePagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toastResult } from "@/lib/toast-result";
-import { createUser, deleteUser, deleteUsers, updateUser } from "../actions";
+import { createUser, deleteUser, deleteUsers, resetUserTotp, setUserCompanies, updateUser } from "../actions";
 
-type User = { id: string; name: string; email: string; role: "admin" | "user"; active: boolean };
+type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: "admin" | "user";
+  active: boolean;
+  hasTotp: boolean;
+  companyIds: string[];
+};
+type CompanyOption = { id: string; legalName: string };
 
-export function UsersClient({ users, currentUserId }: { users: User[]; currentUserId: string }) {
+export function UsersClient({
+  users,
+  companies,
+  currentUserId,
+}: {
+  users: User[];
+  companies: CompanyOption[];
+  currentUserId: string;
+}) {
   const [editing, setEditing] = useState<Partial<User> | null>(null);
   const [role, setRole] = useState<"admin" | "user">("user");
   const [active, setActive] = useState(true);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [access, setAccess] = useState<User | null>(null);
+  const [accessIds, setAccessIds] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
+  const [accessPending, startAccessTransition] = useTransition();
+
+  function openAccess(u: User) {
+    setAccess(u);
+    setAccessIds(new Set(u.companyIds));
+  }
+
+  function toggleAccessCompany(id: string, checked: boolean) {
+    setAccessIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function saveAccess() {
+    if (!access) return;
+    startAccessTransition(async () => {
+      if (toastResult(await setUserCompanies(access.id, [...accessIds]), "Acesso atualizado.")) setAccess(null);
+    });
+  }
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return users;
@@ -124,7 +165,24 @@ export function UsersClient({ users, currentUserId }: { users: User[]; currentUs
                 <TableCell>
                   <Badge variant={u.active ? "outline" : "destructive"}>{u.active ? "Ativo" : "Inativo"}</Badge>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right whitespace-nowrap">
+                  {u.role === "user" && (
+                    <Button variant="ghost" size="icon" aria-label="Empresas" title="Empresas que pode acessar" onClick={() => openAccess(u)}>
+                      <Building2 />
+                    </Button>
+                  )}
+                  {u.hasTotp && (
+                    <ConfirmAction
+                      title="Resetar autenticador?"
+                      description={`${u.name} vai precisar configurar o aplicativo autenticador de novo no próximo login.`}
+                      confirmLabel="Resetar"
+                      onConfirm={async () => toastResult(await resetUserTotp(u.id), "Autenticador resetado.")}
+                    >
+                      <Button variant="ghost" size="icon" aria-label="Resetar autenticador" title="Resetar autenticador (TOTP)">
+                        <ShieldOff />
+                      </Button>
+                    </ConfirmAction>
+                  )}
                   <Button variant="ghost" size="icon" aria-label="Editar" onClick={() => open(u)}>
                     <Pencil />
                   </Button>
@@ -206,6 +264,32 @@ export function UsersClient({ users, currentUserId }: { users: User[]; currentUs
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={access !== null} onOpenChange={(o) => !o && setAccess(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Empresas de {access?.name}</DialogTitle>
+            <DialogDescription>Administradores sempre acessam todas; aqui você escolhe só para usuários comuns.</DialogDescription>
+          </DialogHeader>
+          <div className="grid max-h-[50vh] gap-2 overflow-y-auto pr-1">
+            {companies.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma empresa cadastrada.</p>}
+            {companies.map((c) => (
+              <label key={c.id} className="flex items-center gap-2 text-sm">
+                <Checkbox checked={accessIds.has(c.id)} onCheckedChange={(v) => toggleAccessCompany(c.id, v === true)} />
+                {c.legalName}
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setAccess(null)}>
+              Cancelar
+            </Button>
+            <Button type="button" disabled={accessPending} onClick={saveAccess}>
+              Salvar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Card>

@@ -245,8 +245,8 @@ export async function deleteKnot(id: string) {
 }
 
 export async function setPeriodLock(date: string | null) {
-  await requireAdmin();
-  const company = await getActiveCompany();
+  const admin = await requireAdmin();
+  const company = await getActiveCompany(admin);
   if (!company) return { ok: false as const, error: "Selecione uma empresa." };
   return run(async () => {
     await db.update(companies).set({ periodLockedUntil: date }).where(eq(companies.id, company.id));

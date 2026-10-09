@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
       },
     },
   },
-  serverExternalPackages: ["postgres", "nodemailer"],
+  serverExternalPackages: ["postgres"],
   poweredByHeader: false,
   experimental: {
     serverActions: {

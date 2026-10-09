@@ -1,0 +1,2 @@
+ALTER TABLE "profiles" ADD COLUMN "pinned_company_id" uuid;--> statement-breakpoint
+ALTER TABLE "profiles" ADD CONSTRAINT "profiles_pinned_company_id_companies_id_fk" FOREIGN KEY ("pinned_company_id") REFERENCES "public"."companies"("id") ON DELETE set null ON UPDATE no action;

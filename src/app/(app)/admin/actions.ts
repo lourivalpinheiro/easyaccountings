@@ -4,7 +4,7 @@ import { eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
-import { companies, profiles } from "@/db/schema";
+import { companies, profiles, userCompanies } from "@/db/schema";
 import { isValidDocument, PERSON_LABELS } from "@/lib/accounting";
 import { run, UserError, type ActionResult } from "@/lib/action-utils";
 import { requireAdmin } from "@/lib/auth/session";
@@ -162,6 +162,29 @@ export async function deleteUsers(ids: string[]): Promise<ActionResult> {
       if (error) throw new UserError(`Não foi possível excluir um dos usuários: ${error.message}`);
     }
     revalidatePath("/admin/usuarios");
+  });
+}
+
+/** Zera o segredo TOTP: o usuário configura o autenticador de novo no próximo login. */
+export async function resetUserTotp(id: string): Promise<ActionResult> {
+  await requireAdmin();
+  return run(async () => {
+    await db.update(profiles).set({ totpSecret: null }).where(eq(profiles.id, id));
+    revalidatePath("/admin/usuarios");
+  });
+}
+
+/** Define a quais empresas um usuário "user" tem acesso; administradores sempre acessam todas. */
+export async function setUserCompanies(userId: string, companyIds: string[]): Promise<ActionResult> {
+  await requireAdmin();
+  return run(async () => {
+    await db.transaction(async (tx) => {
+      await tx.delete(userCompanies).where(eq(userCompanies.userId, userId));
+      if (companyIds.length > 0) {
+        await tx.insert(userCompanies).values(companyIds.map((companyId) => ({ userId, companyId })));
+      }
+    });
+    revalidatePath("/", "layout");
   });
 }
 

@@ -4,6 +4,7 @@ import { getActiveCompany } from "@/lib/company";
 
 /** Usuário e empresa ativa para páginas do módulo contábil. */
 export async function getPageContext() {
-  const [user, company] = await Promise.all([requireUser(), getActiveCompany()]);
+  const user = await requireUser();
+  const company = await getActiveCompany(user);
   return { user, company };
 }

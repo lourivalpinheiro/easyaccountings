@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Check, Pencil, Plus, Trash2, X } from "lucide-react";
-import { useState, useTransition } from "react";
+import { ArrowDown, ArrowUp, Check, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
 import { BulkDeleteBar } from "@/components/bulk-delete-bar";
 import { ConfirmAction } from "@/components/confirm-button";
 import { TablePagination, usePagination } from "@/components/pagination";
@@ -19,9 +19,14 @@ export function DreCategoriesClient({ categories }: { categories: Category[] }) 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [newName, setNewName] = useState("");
+  const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
-  const { rows: pageRows, pagination } = usePagination(categories);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? categories.filter((c) => c.name.toLowerCase().includes(q)) : categories;
+  }, [categories, query]);
+  const { rows: pageRows, pagination } = usePagination(filtered);
 
   function toggleRow(id: string, checked: boolean) {
     setSelected((prev) => {
@@ -64,6 +69,10 @@ export function DreCategoriesClient({ categories }: { categories: Category[] }) 
             <Plus /> Adicionar
           </Button>
         </form>
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input placeholder="Buscar categoria..." className="pl-8" value={query} onChange={(e) => setQuery(e.target.value)} />
+        </div>
         <BulkDeleteBar count={selected.size} onConfirm={() => deleteDreCategories([...selected])} onDone={() => setSelected(new Set())} />
         <Table>
           <TableHeader>
@@ -82,10 +91,10 @@ export function DreCategoriesClient({ categories }: { categories: Category[] }) 
             </TableRow>
           </TableHeader>
           <TableBody>
-            {categories.length === 0 && (
+            {filtered.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground">
-                  Nenhuma categoria cadastrada.
+                  {categories.length === 0 ? "Nenhuma categoria cadastrada." : "Nenhuma categoria encontrada."}
                 </TableCell>
               </TableRow>
             )}

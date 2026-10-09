@@ -6,14 +6,14 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { UserMenu } from "@/components/user-menu";
 import { requireUser } from "@/lib/auth/session";
-import { getActiveCompany, listCompanies } from "@/lib/company";
+import { getActiveCompany, listAccessibleCompanies } from "@/lib/company";
 import { AVATARS_BUCKET, publicUrl } from "@/lib/storage";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const [companies, active, cookieStore] = await Promise.all([
-    listCompanies(),
-    getActiveCompany(),
+    listAccessibleCompanies(user),
+    getActiveCompany(user),
     cookies(),
   ]);
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
@@ -29,6 +29,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <CompanySwitcher
             companies={companies.map(({ id, personType, legalName, document }) => ({ id, personType, legalName, document }))}
             activeId={active?.id}
+            pinnedId={user.pinnedCompanyId}
           />
           </div>
           <div className="ml-auto flex shrink-0 items-center gap-1">
