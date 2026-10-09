@@ -9,7 +9,7 @@ import { formatDate, formatReportMoney, toCents } from "@/lib/accounting";
 import { getChart, getMovements } from "@/lib/data/ledger";
 import { todayIso } from "@/lib/period";
 import { cn } from "@/lib/utils";
-import { BudgetFilters } from "@/app/(app)/relatorios/orcamento/budget-filters";
+import { BudgetFilters } from "@/app/(app)/financeiro/orcado-x-realizado/budget-filters";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 

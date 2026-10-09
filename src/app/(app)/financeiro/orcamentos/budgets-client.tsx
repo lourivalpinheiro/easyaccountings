@@ -19,7 +19,7 @@ import { formatDate, formatMoney } from "@/lib/accounting";
 import { todayIso, yearStartIso } from "@/lib/period";
 import { toastResult } from "@/lib/toast-result";
 import { cn } from "@/lib/utils";
-import { deleteBudget, deleteBudgets, saveBudget } from "../actions";
+import { deleteBudget, deleteBudgets, saveBudget } from "./actions";
 
 type Item = { accountId: string | null; cents: number };
 type Budget = { id?: string; name: string; startDate: string; endDate: string; totalCents: number; items: Item[] };
@@ -130,7 +130,7 @@ export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accoun
                 <TableCell className="text-right tabular-nums">{formatMoney(b.totalCents)}</TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon" aria-label="Orçado x realizado" asChild>
-                    <Link href={`/relatorios/orcamento?orcamento=${b.id}`}>
+                    <Link href={`/financeiro/orcado-x-realizado?orcamento=${b.id}`}>
                       <BarChart3 />
                     </Link>
                   </Button>

@@ -16,6 +16,13 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "20mb",
     },
   },
+  async redirects() {
+    // Orçamentos passaram do módulo contábil para o financeiro.
+    return [
+      { source: "/arquivo/orcamentos", destination: "/financeiro/orcamentos", permanent: true },
+      { source: "/relatorios/orcamento", destination: "/financeiro/orcado-x-realizado", permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

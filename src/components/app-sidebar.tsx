@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   type LucideIcon,
   PenLine,
+  PiggyBank,
   Settings2,
   ShieldCheck,
   Wallet,
@@ -51,7 +52,6 @@ const ACCOUNTING: Section[] = [
     icon: FolderOpen,
     items: [
       { title: "Notas explicativas", href: "/arquivo/notas-explicativas" },
-      { title: "Orçamentos", href: "/arquivo/orcamentos" },
       { title: "Plano de contas", href: "/arquivo/plano-de-contas" },
     ],
   },
@@ -78,7 +78,6 @@ const ACCOUNTING: Section[] = [
       { title: "DRE", href: "/relatorios/dre" },
       { title: "Livro Diário", href: "/relatorios/livro-diario" },
       { title: "Livro Razão", href: "/relatorios/livro-razao" },
-      { title: "Orçado x Realizado", href: "/relatorios/orcamento" },
     ],
   },
   {
@@ -99,6 +98,14 @@ const FINANCE: Section[] = [
       { title: "Entradas e saídas", href: "/financeiro/fluxo-de-caixa" },
       { title: "Relatório", href: "/financeiro/relatorio" },
       { title: "Saúde de caixa", href: "/financeiro/saude" },
+    ],
+  },
+  {
+    title: "Orçamento",
+    icon: PiggyBank,
+    items: [
+      { title: "Orçamentos", href: "/financeiro/orcamentos" },
+      { title: "Orçado x Realizado", href: "/financeiro/orcado-x-realizado" },
     ],
   },
   {
