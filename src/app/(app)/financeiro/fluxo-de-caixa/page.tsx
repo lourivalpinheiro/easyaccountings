@@ -6,6 +6,7 @@ import { cashFlowEntries } from "@/db/schema";
 import { toCents } from "@/lib/accounting";
 import { getAttachmentsByCashFlowEntry } from "@/lib/data/attachments";
 import { getCashBalanceBefore, getCashTotals } from "@/lib/data/cash-flow";
+import { getInvestmentOptions } from "@/lib/data/investments";
 import { getPageContext } from "@/lib/page-context";
 import { readPeriod } from "@/lib/period";
 import { readTableParams } from "@/lib/table-controls";
@@ -44,7 +45,7 @@ export default async function CashFlowPage({ searchParams }: PageProps<"/finance
   }
   const where = and(...filters);
 
-  const [rows, [{ total }], totals, previous, categories] = await Promise.all([
+  const [rows, [{ total }], totals, previous, categories, investmentOptions] = await Promise.all([
     db
       .select()
       .from(cashFlowEntries)
@@ -60,6 +61,7 @@ export default async function CashFlowPage({ searchParams }: PageProps<"/finance
       .from(cashFlowEntries)
       .where(and(eq(cashFlowEntries.companyId, company.id), isNotNull(cashFlowEntries.category)))
       .orderBy(asc(cashFlowEntries.category)),
+    getInvestmentOptions(company.id),
   ]);
   const attachmentsByEntry = await getAttachmentsByCashFlowEntry(rows.map((r) => r.id));
 
@@ -73,6 +75,7 @@ export default async function CashFlowPage({ searchParams }: PageProps<"/finance
         paging={{ page, pageSize, total }}
         summary={{ previous, ...totals }}
         categories={categories.map((c) => c.category!)}
+        investments={investmentOptions}
         entries={rows.map((r) => ({
           id: r.id,
           date: r.date,
@@ -82,6 +85,7 @@ export default async function CashFlowPage({ searchParams }: PageProps<"/finance
           cents: toCents(r.amount),
           frequency: r.frequency,
           seriesId: r.seriesId,
+          investmentId: r.investmentId,
           attachments: attachmentsByEntry.get(r.id) ?? [],
         }))}
       />

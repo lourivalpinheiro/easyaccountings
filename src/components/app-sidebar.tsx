@@ -13,6 +13,7 @@ import {
   PiggyBank,
   Settings2,
   ShieldCheck,
+  Target,
   Wallet,
   Wrench,
 } from "lucide-react";
@@ -98,7 +99,13 @@ const FINANCE: Section[] = [
       { title: "Entradas e saídas", href: "/financeiro/fluxo-de-caixa" },
       { title: "Relatório", href: "/financeiro/relatorio" },
       { title: "Saúde de caixa", href: "/financeiro/saude" },
+      { title: "Aplicações financeiras", href: "/financeiro/aplicacoes" },
     ],
+  },
+  {
+    title: "Planejamento",
+    icon: Target,
+    items: [{ title: "Planos financeiros", href: "/financeiro/planejamento" }],
   },
   {
     title: "Orçamento",

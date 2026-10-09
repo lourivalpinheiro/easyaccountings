@@ -4,7 +4,7 @@ import { and, eq, gte, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
-import { cashFlowEntries } from "@/db/schema";
+import { cashFlowEntries, investments } from "@/db/schema";
 import { centsToDecimal } from "@/lib/accounting";
 import { FLOW_TYPES, FREQUENCIES, MAX_OCCURRENCES, occurrenceDates } from "@/lib/cash-flow-types";
 import { companyAction, UserError } from "@/lib/action-utils";
@@ -21,6 +21,7 @@ const entrySchema = z.object({
     .max(80)
     .transform((v) => v || null),
   cents: z.number().int().positive("O valor deve ser maior que zero."),
+  investmentId: z.uuid().nullable().default(null),
   frequency: z.enum(FREQUENCIES).default("unica"),
   occurrences: z
     .number()
@@ -36,6 +37,15 @@ export async function saveCashFlowEntry(input: z.input<typeof entrySchema>) {
     if (!parsed.success) throw new UserError(parsed.error.issues[0].message);
     const { id, cents, frequency, occurrences, ...data } = parsed.data;
     await assertPeriodOpen(companyId, data.date);
+    // Só economia (aporte) e entrada (resgate) movimentam aplicações.
+    if (data.type !== "economia" && data.type !== "entrada") data.investmentId = null;
+    if (data.investmentId) {
+      const [inv] = await db
+        .select({ id: investments.id })
+        .from(investments)
+        .where(and(eq(investments.id, data.investmentId), eq(investments.companyId, companyId)));
+      if (!inv) throw new UserError("Aplicação não encontrada.");
+    }
     const values = { ...data, amount: centsToDecimal(cents) };
     if (id) {
       // A edição altera só esta ocorrência; a frequência da série é mantida.

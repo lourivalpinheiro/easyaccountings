@@ -60,6 +60,7 @@ type Entry = {
   cents: number;
   frequency: Frequency;
   seriesId: string | null;
+  investmentId: string | null;
   attachments: Attachment[];
 };
 type Draft = {
@@ -71,7 +72,10 @@ type Draft = {
   cents: number;
   frequency: Frequency;
   occurrences: number;
+  investmentId: string | null;
 };
+
+const NO_INVESTMENT = "nenhuma";
 
 const TYPE_STYLE: Record<FlowType, { icon: typeof Wallet; tone: string; on: string; button: string }> = {
   entrada: {
@@ -107,6 +111,7 @@ export function CashFlowClient({
   paging,
   summary,
   categories,
+  investments,
   entries,
 }: {
   period: { from: string; to: string };
@@ -115,6 +120,7 @@ export function CashFlowClient({
   paging: { page: number; pageSize: number; total: number };
   summary: { previous: number; inflow: number; outflow: number; byType: Record<FlowType, number> };
   categories: string[];
+  investments: { id: string; name: string; active: boolean }[];
   entries: Entry[];
 }) {
   const router = useRouter();
@@ -155,7 +161,7 @@ export function CashFlowClient({
   };
 
   const open = (type: FlowType) =>
-    setDraft({ date: todayIso(), type, description: "", category: "", cents: 0, frequency: "unica", occurrences: 12 });
+    setDraft({ date: todayIso(), type, description: "", category: "", cents: 0, frequency: "unica", occurrences: 12, investmentId: null });
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -449,6 +455,29 @@ export function CashFlowClient({
                       Serão criadas {draft.occurrences} movimentações a partir de {formatDate(draft.date)}.
                     </p>
                   )}
+                </div>
+              )}
+              {(draft.type === "economia" || draft.type === "entrada") && investments.length > 0 && (
+                <div className="grid gap-2">
+                  <Label htmlFor="cf-inv">{draft.type === "economia" ? "Aporte na aplicação (opcional)" : "Resgate da aplicação (opcional)"}</Label>
+                  <Select
+                    value={draft.investmentId ?? NO_INVESTMENT}
+                    onValueChange={(v) => setDraft({ ...draft, investmentId: v === NO_INVESTMENT ? null : v })}
+                  >
+                    <SelectTrigger id="cf-inv" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      <SelectItem value={NO_INVESTMENT}>Nenhuma</SelectItem>
+                      {investments
+                        .filter((i) => i.active || i.id === draft.investmentId)
+                        .map((i) => (
+                          <SelectItem key={i.id} value={i.id}>
+                            {i.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
               <AttachmentsPanel

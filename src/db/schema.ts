@@ -38,6 +38,18 @@ export const cashFlowFrequency = pgEnum("cash_flow_frequency", [
   "semestral",
   "anual",
 ]);
+export const investmentKind = pgEnum("investment_kind", [
+  "poupanca",
+  "cdb",
+  "lci_lca",
+  "tesouro",
+  "fundo",
+  "acoes",
+  "previdencia",
+  "cripto",
+  "outro",
+]);
+export const planSection = pgEnum("plan_section", ["diagnostico", "planejamento", "orcamentos", "controle", "cenarios"]);
 export const nature = pgEnum("nature", ["D", "C"]);
 export const entrySide = pgEnum("entry_side", ["D", "C"]);
 export const reconciliationModule = pgEnum("reconciliation_module", ["contabil", "financeiro", "ambos"]);
@@ -286,6 +298,8 @@ export const cashFlowEntries = pgTable(
     frequency: cashFlowFrequency("frequency").notNull().default("unica"),
     /** Ocorrências geradas por um mesmo lançamento recorrente compartilham a série. */
     seriesId: uuid("series_id"),
+    /** Aplicação financeira movimentada: aporte (economia) ou resgate (entrada). */
+    investmentId: uuid("investment_id").references((): AnyPgColumn => investments.id, { onDelete: "set null" }),
     createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
     ...timestamps,
   },
@@ -382,6 +396,156 @@ export const reconciliationRules = pgTable(
     ...timestamps,
   },
   (t) => [uniqueIndex("reconciliation_rules_company_pattern").on(t.companyId, t.pattern)],
+).enableRLS();
+
+/** Aplicações financeiras (CDB, Tesouro, poupança...). Aportes e resgates entram no fluxo de caixa. */
+export const investments = pgTable(
+  "investments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    kind: investmentKind("kind").notNull().default("outro"),
+    institution: text("institution"),
+    notes: text("notes"),
+    active: boolean("active").notNull().default(true),
+    ...timestamps,
+  },
+  (t) => [index("investments_company").on(t.companyId)],
+).enableRLS();
+
+/** Saldo informado de uma aplicação numa data (inclui rendimentos); base para o saldo atual. */
+export const investmentValuations = pgTable(
+  "investment_valuations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    investmentId: uuid("investment_id")
+      .notNull()
+      .references(() => investments.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    balance: numeric("balance", { precision: 18, scale: 2 }).notNull(),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("investment_valuations_investment_date").on(t.investmentId, t.date)],
+).enableRLS();
+
+/** Plano financeiro anual: um por empresa e ano; o texto de cada seção fica em `content` (JSON do editor). */
+export const financialPlans = pgTable(
+  "financial_plans",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    year: integer("year").notNull(),
+    title: text("title").notNull(),
+    /** Período analisado no diagnóstico. */
+    diagnosisFrom: date("diagnosis_from").notNull(),
+    diagnosisTo: date("diagnosis_to").notNull(),
+    content: jsonb("content").$type<Record<string, unknown>>().notNull().default({}),
+    createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("financial_plans_company_year").on(t.companyId, t.year)],
+).enableRLS();
+
+/** Orçamento do plano: valor por tipo de movimentação, categoria do fluxo de caixa e mês. */
+export const planBudgetItems = pgTable(
+  "plan_budget_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => financialPlans.id, { onDelete: "cascade" }),
+    type: cashFlowType("type").notNull(),
+    category: text("category").notNull(),
+    month: integer("month").notNull(),
+    amount: numeric("amount", { precision: 18, scale: 2 }).notNull(),
+  },
+  (t) => [uniqueIndex("plan_budget_items_unique").on(t.planId, t.type, t.category, t.month)],
+).enableRLS();
+
+/** Metas do planejamento (reserva de emergência, compra, aposentadoria...). */
+export const planGoals = pgTable(
+  "plan_goals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => financialPlans.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    targetAmount: numeric("target_amount", { precision: 18, scale: 2 }).notNull(),
+    /** Valor já acumulado quando a meta não está ligada a uma aplicação. */
+    initialAmount: numeric("initial_amount", { precision: 18, scale: 2 }).notNull().default("0"),
+    deadline: date("deadline").notNull(),
+    /** 1 = alta, 2 = média, 3 = baixa. */
+    priority: integer("priority").notNull().default(2),
+    /** Rentabilidade esperada, em % ao ano. */
+    annualReturn: numeric("annual_return", { precision: 7, scale: 3 }).notNull().default("0"),
+    investmentId: uuid("investment_id").references(() => investments.id, { onDelete: "set null" }),
+    notes: text("notes"),
+    position: integer("position").notNull().default(0),
+  },
+  (t) => [index("plan_goals_plan").on(t.planId)],
+).enableRLS();
+
+/** Cenário econômico para projeção do fluxo de caixa (taxas em % ao ano). */
+export const planScenarios = pgTable(
+  "plan_scenarios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => financialPlans.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    color: text("color").notNull().default("#3b82f6"),
+    position: integer("position").notNull().default(0),
+    revenueGrowth: numeric("revenue_growth", { precision: 7, scale: 3 }).notNull().default("0"),
+    expenseGrowth: numeric("expense_growth", { precision: 7, scale: 3 }).notNull().default("0"),
+    inflation: numeric("inflation", { precision: 7, scale: 3 }).notNull().default("0"),
+    investmentReturn: numeric("investment_return", { precision: 7, scale: 3 }).notNull().default("0"),
+    horizonMonths: integer("horizon_months").notNull().default(12),
+    /** Eventos pontuais: { month: "AAAA-MM", description, cents } (cents > 0 entra, < 0 sai). */
+    events: jsonb("events").$type<{ month: string; description: string; cents: number }[]>().notNull().default([]),
+  },
+  (t) => [index("plan_scenarios_plan").on(t.planId)],
+).enableRLS();
+
+/** Versões salvas do plano: cópia do texto, dados e números da época. */
+export const planVersions = pgTable(
+  "plan_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => financialPlans.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    label: text("label").notNull(),
+    snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull(),
+    createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("plan_versions_plan_number").on(t.planId, t.number)],
+).enableRLS();
+
+/** Imagens e arquivos inseridos nos textos do plano (bucket "anexos"). */
+export const planFiles = pgTable(
+  "plan_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => financialPlans.id, { onDelete: "cascade" }),
+    fileName: text("file_name").notNull(),
+    storagePath: text("storage_path").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [index("plan_files_plan").on(t.planId)],
 ).enableRLS();
 
 export const accountsRelations = relations(accounts, ({ one }) => ({
