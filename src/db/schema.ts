@@ -86,6 +86,8 @@ export const companies = pgTable("companies", {
   legalName: text("legal_name").notNull(),
   /** Nome fantasia (PJ) ou apelido (PF); opcional, não se aplica a informais (INF). */
   displayName: text("display_name"),
+  /** Caminho no bucket "logos"; nulo = usa a marca padrão (Nedemy) nos relatórios. */
+  logoPath: text("logo_path"),
   /** CNPJ (PJ) ou CPF (PF), somente dígitos; vazio para empresas informais (INF). */
   document: text("document").unique(),
   /** Código secreto do link público (somente leitura); nulo = empresa privada. */

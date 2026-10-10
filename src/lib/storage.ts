@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 
 export const AVATARS_BUCKET = "avatars";
 export const ANEXOS_BUCKET = "anexos";
+export const LOGOS_BUCKET = "logos";
 
 const STORAGE_TIMEOUT_MS = 15_000;
 

@@ -31,7 +31,7 @@ Font.registerHyphenationCallback((word) => [word]);
 const PAGE_W = 595.28;
 const MARGIN = 48;
 const CONTENT_W = PAGE_W - MARGIN * 2;
-const PRIMARY = "#353535";
+const PRIMARY = "#000000";
 
 const LOGO = readFileSync(join(process.cwd(), "public/brand/nedemy-vertical.png"));
 

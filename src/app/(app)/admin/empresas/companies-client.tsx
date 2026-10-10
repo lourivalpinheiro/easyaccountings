@@ -1,8 +1,8 @@
 "use client";
 
-import { Globe, Link2, ListChecks, Lock, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Globe, Link2, ListChecks, Loader2, Lock, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { BulkDeleteBar } from "@/components/bulk-delete-bar";
 import { ConfirmAction } from "@/components/confirm-button";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,16 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatDocument, PERSON_LABELS, type PersonType } from "@/lib/accounting";
 import { PUBLIC_SECTIONS } from "@/lib/public-sections";
 import { toastResult } from "@/lib/toast-result";
-import { deleteCompanies, deleteCompany, publishCompany, saveCompany, unpublishCompany, updatePublicSections } from "../actions";
+import {
+  deleteCompanies,
+  deleteCompany,
+  publishCompany,
+  removeCompanyLogo,
+  saveCompany,
+  unpublishCompany,
+  updatePublicSections,
+  uploadCompanyLogo,
+} from "../actions";
 import { ActiveFilters, ColumnHead, useTableControls } from "@/components/column-head";
 import type { Column } from "@/lib/table-controls";
 
@@ -49,6 +58,7 @@ type Company = {
   document: string | null;
   publicToken: string | null;
   publicSections: string[] | null;
+  logoUrl: string | null;
 };
 
 const COLUMNS: Column<Company>[] = [
@@ -103,6 +113,8 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const [configPending, startConfigTransition] = useTransition();
+  const [pendingLogo, startLogoTransition] = useTransition();
+  const logoInput = useRef<HTMLInputElement>(null);
   const labels = PERSON_LABELS[personType];
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -148,6 +160,33 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
     setPersonType(type);
     setDocument(company.document ? formatDocument(type, company.document) : "");
     setCloneFrom(NO_CLONE);
+  }
+
+  function pickLogo() {
+    logoInput.current?.click();
+  }
+
+  function onLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !editing?.id) return;
+    const formData = new FormData();
+    formData.set("logo", file);
+    startLogoTransition(async () => {
+      const result = await uploadCompanyLogo(editing.id!, formData);
+      if (toastResult(result, "Logo atualizada.") && result.ok) {
+        setEditing((prev) => (prev ? { ...prev, logoUrl: result.data!.logoUrl } : prev));
+      }
+    });
+  }
+
+  function clearLogo() {
+    if (!editing?.id) return;
+    startLogoTransition(async () => {
+      if (toastResult(await removeCompanyLogo(editing.id!), "Logo removida.")) {
+        setEditing((prev) => (prev ? { ...prev, logoUrl: null } : prev));
+      }
+    });
   }
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -371,6 +410,34 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
                 required
               />
             </div>
+            )}
+            {editing?.id && (
+              <div className="grid gap-2">
+                <Label>Logo nos relatórios</Label>
+                <p className="text-xs text-muted-foreground">PNG, JPEG, WEBP ou SVG, até 5 MB. Sem logo própria, os relatórios usam a marca Nedemy.</p>
+                <div className="flex items-center gap-3">
+                  <div className="flex size-14 items-center justify-center rounded border bg-muted/40 p-1">
+                    {editing.logoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- logo enviada pelo usuário, não otimizável pelo next/image.
+                      <img src={editing.logoUrl} alt="" className="max-h-full max-w-full object-contain" />
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">Nedemy</span>
+                    )}
+                  </div>
+                  <input ref={logoInput} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={onLogoChange} />
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" size="sm" disabled={pendingLogo} onClick={pickLogo}>
+                      {pendingLogo ? <Loader2 className="animate-spin" /> : null}
+                      Trocar logo
+                    </Button>
+                    {editing.logoUrl && (
+                      <Button type="button" variant="ghost" size="sm" disabled={pendingLogo} onClick={clearLogo}>
+                        <Trash2 /> Remover
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
             )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditing(null)}>

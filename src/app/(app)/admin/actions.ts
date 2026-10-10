@@ -10,6 +10,7 @@ import { run, UserError, type ActionResult } from "@/lib/action-utils";
 import { requireAdmin } from "@/lib/auth/session";
 import { cloneCompanyParams, seedCompany } from "@/lib/data/seed-company";
 import { newPublicToken } from "@/lib/public-company";
+import { deleteFile, LOGOS_BUCKET, publicUrl, randomStoragePath, uploadFile } from "@/lib/storage";
 import { createAdminClient } from "@/lib/supabase/server";
 
 const companySchema = z
@@ -63,6 +64,41 @@ export async function saveCompany(input: {
         }
       });
     }
+    revalidatePath("/", "layout");
+  });
+}
+
+const MAX_LOGO_BYTES = 5 * 1024 * 1024;
+const ALLOWED_LOGO_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
+
+/** Logo exibida nos relatórios da empresa, no lugar da marca Nedemy padrão. */
+export async function uploadCompanyLogo(companyId: string, formData: FormData): Promise<ActionResult<{ logoUrl: string }>> {
+  await requireAdmin();
+  return run(async () => {
+    const file = formData.get("logo");
+    if (!(file instanceof File) || file.size === 0) throw new UserError("Selecione uma imagem.");
+    if (file.size > MAX_LOGO_BYTES) throw new UserError("A imagem deve ter até 5 MB.");
+    if (!ALLOWED_LOGO_TYPES.includes(file.type)) throw new UserError("Envie uma imagem PNG, JPEG, WEBP ou SVG.");
+
+    const [company] = await db.select({ logoPath: companies.logoPath }).from(companies).where(eq(companies.id, companyId));
+    if (!company) throw new UserError("Empresa não encontrada.");
+
+    const path = randomStoragePath(`companies/${companyId}`, file.name);
+    await uploadFile(LOGOS_BUCKET, path, file);
+    await db.update(companies).set({ logoPath: path }).where(eq(companies.id, companyId));
+    if (company.logoPath) void deleteFile(LOGOS_BUCKET, company.logoPath).catch(() => {});
+    revalidatePath("/", "layout");
+    return { logoUrl: publicUrl(LOGOS_BUCKET, path) };
+  });
+}
+
+export async function removeCompanyLogo(companyId: string): Promise<ActionResult> {
+  await requireAdmin();
+  return run(async () => {
+    const [company] = await db.select({ logoPath: companies.logoPath }).from(companies).where(eq(companies.id, companyId));
+    if (!company?.logoPath) return;
+    await db.update(companies).set({ logoPath: null }).where(eq(companies.id, companyId));
+    void deleteFile(LOGOS_BUCKET, company.logoPath).catch(() => {});
     revalidatePath("/", "layout");
   });
 }
