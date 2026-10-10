@@ -12,3 +12,21 @@ export function Logo({ className }: { className?: string }) {
     </div>
   );
 }
+
+/** Marca empilhada (símbolo sobre "NEDEMY"), para telas de destaque como o login. */
+export function LogoVertical({ className }: { className?: string }) {
+  return (
+    <span className={cn("relative block", className)}>
+      <Image src="/brand/nedemy-vertical.png" alt="Nedemy" width={746} height={370} className="h-auto w-full dark:hidden" priority unoptimized />
+      <Image
+        src="/brand/nedemy-vertical-white.png"
+        alt="Nedemy"
+        width={747}
+        height={371}
+        className="hidden h-auto w-full dark:block"
+        priority
+        unoptimized
+      />
+    </span>
+  );
+}

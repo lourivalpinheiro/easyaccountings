@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { formatDate, formatDocument, formatNowBrasilia, PERSON_LABELS } from "@/lib/accounting";
 import type { Company } from "@/lib/company";
 import { cn } from "@/lib/utils";
@@ -16,21 +17,24 @@ export function ReportSheet({
 }) {
   return (
     <article className="print-area overflow-x-auto rounded-lg border bg-card p-3 text-card-foreground sm:p-6 shadow-sm print:overflow-visible">
-      <header className="mb-4 grid gap-0.5 border-b pb-3 text-sm">
-        <div>
-          <span className="text-muted-foreground">{PERSON_LABELS[company.personType].name}: </span>
-          <strong>{company.legalName}</strong>
-        </div>
-        {company.document && (
+      <header className="mb-4 flex items-start justify-between gap-4 border-b pb-3 text-sm">
+        <div className="grid gap-0.5">
           <div>
-            <span className="text-muted-foreground">{PERSON_LABELS[company.personType].document}: </span>
-            {formatDocument(company.personType, company.document)}
+            <span className="text-muted-foreground">{PERSON_LABELS[company.personType].name}: </span>
+            <strong>{company.legalName}</strong>
           </div>
-        )}
-        <div>
-          <span className="text-muted-foreground">Período: </span>
-          {formatDate(period.from)} a {formatDate(period.to)}
+          {company.document && (
+            <div>
+              <span className="text-muted-foreground">{PERSON_LABELS[company.personType].document}: </span>
+              {formatDocument(company.personType, company.document)}
+            </div>
+          )}
+          <div>
+            <span className="text-muted-foreground">Período: </span>
+            {formatDate(period.from)} a {formatDate(period.to)}
+          </div>
         </div>
+        <Image src="/brand/nedemy-vertical.png" alt="Nedemy" width={746} height={370} className="h-auto w-20 shrink-0" unoptimized />
       </header>
       <h2 className="mb-4 text-center text-base font-bold sm:text-lg tracking-wide uppercase">{title}</h2>
       {children}

@@ -1,4 +1,4 @@
-import { Logo } from "@/components/logo";
+import { LogoVertical } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -7,7 +7,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
-      <Logo />
+      <LogoVertical className="w-40" />
       <div className="w-full max-w-sm">{children}</div>
     </div>
   );

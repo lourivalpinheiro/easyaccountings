@@ -1,4 +1,6 @@
 import "server-only";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   Circle,
   Document,
@@ -29,7 +31,9 @@ Font.registerHyphenationCallback((word) => [word]);
 const PAGE_W = 595.28;
 const MARGIN = 48;
 const CONTENT_W = PAGE_W - MARGIN * 2;
-const PRIMARY = "#1d4ed8";
+const PRIMARY = "#353535";
+
+const LOGO = readFileSync(join(process.cwd(), "public/brand/nedemy-vertical.png"));
 
 const s = StyleSheet.create({
   page: { paddingTop: MARGIN, paddingBottom: 64, paddingHorizontal: MARGIN, fontFamily: "Helvetica", fontSize: 10, lineHeight: 1.45, color: "#111827" },
@@ -343,6 +347,8 @@ function PlanDocument({ ctx, meta, tocPages }: { ctx: Ctx; meta: PdfMeta; tocPag
       <Page size="A4" style={{ ...s.page, justifyContent: "space-between" }}>
         <View style={{ height: 6, backgroundColor: PRIMARY, marginHorizontal: -MARGIN, marginTop: -MARGIN }} />
         <View>
+          {/* eslint-disable-next-line jsx-a11y/alt-text -- o Image do react-pdf não tem atributo alt. */}
+          <Image src={LOGO} style={{ width: 90, marginBottom: 20 }} />
           <Text style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>Planejamento financeiro</Text>
           <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 30, color: PRIMARY, lineHeight: 1.15 }}>{snap.title}</Text>
           <Text style={{ fontSize: 48, fontFamily: "Helvetica-Bold", color: "#d1d5db", marginTop: 10 }}>{snap.dataset.year}</Text>
