@@ -69,7 +69,7 @@ export function verifyTotp(secret: string, token: string) {
 }
 
 /** URI otpauth:// para o app autenticador ler via QR code. */
-export function totpUri(secret: string, email: string, issuer = "Easy Accountings") {
+export function totpUri(secret: string, email: string, issuer = "Nedemy Finanças") {
   const label = encodeURIComponent(`${issuer}:${email}`);
   const params = new URLSearchParams({ secret, issuer, algorithm: "SHA1", digits: String(DIGITS), period: String(STEP_SECONDS) });
   return `otpauth://totp/${label}?${params.toString()}`;

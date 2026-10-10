@@ -11,6 +11,7 @@ import {
   type LucideIcon,
   PenLine,
   PiggyBank,
+  Receipt,
   Settings2,
   ShieldCheck,
   Target,
@@ -87,6 +88,7 @@ const ACCOUNTING: Section[] = [
     items: [
       { title: "Fechamento de período", href: "/utilitarios/fechamento" },
       { title: "Zeramento", href: "/parametros/zeramento" },
+      { title: "Remoção de lançamentos", href: "/utilitarios/remocao" },
     ],
   },
 ];
@@ -101,6 +103,14 @@ const FINANCE: Section[] = [
       { title: "Saúde de caixa", href: "/financeiro/saude" },
       { title: "Aplicações financeiras", href: "/financeiro/aplicacoes" },
       { title: "Relatório de aplicações", href: "/financeiro/aplicacoes/relatorio" },
+    ],
+  },
+  {
+    title: "Provisionamento",
+    icon: Receipt,
+    items: [
+      { title: "Contas a pagar e a receber", href: "/financeiro/provisionamento" },
+      { title: "Relatório", href: "/financeiro/provisionamento/relatorio" },
     ],
   },
   {
@@ -122,6 +132,7 @@ const FINANCE: Section[] = [
     items: [
       { title: "Conciliação bancária", href: "/utilitarios/conciliacao" },
       { title: "Fechamento de período", href: "/utilitarios/fechamento" },
+      { title: "Remoção de lançamentos", href: "/utilitarios/remocao" },
     ],
   },
 ];

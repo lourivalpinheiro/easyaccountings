@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatDocument, PERSON_LABELS, type PersonType } from "@/lib/accounting";
@@ -89,10 +90,13 @@ function maskDocument(personType: PersonType, value: string) {
   return out;
 }
 
+const NO_CLONE = "padrao";
+
 export function CompaniesClient({ companies }: { companies: Company[] }) {
   const [editing, setEditing] = useState<Partial<Company> | null>(null);
   const [personType, setPersonType] = useState<PersonType>("PJ");
   const [document, setDocument] = useState("");
+  const [cloneFrom, setCloneFrom] = useState(NO_CLONE);
   const [configuring, setConfiguring] = useState<Company | null>(null);
   const [sections, setSections] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -143,6 +147,7 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
     setEditing(company);
     setPersonType(type);
     setDocument(company.document ? formatDocument(type, company.document) : "");
+    setCloneFrom(NO_CLONE);
   }
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -156,8 +161,13 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
           legalName: String(fd.get("legalName")),
           displayName: String(fd.get("displayName") ?? ""),
           document,
+          cloneFromCompanyId: !editing?.id && cloneFrom !== NO_CLONE ? cloneFrom : undefined,
         }),
-        editing?.id ? "Empresa atualizada." : "Empresa cadastrada com plano de contas padrão.",
+        editing?.id
+          ? "Empresa atualizada."
+          : cloneFrom !== NO_CLONE
+            ? "Empresa cadastrada com os parâmetros replicados."
+            : "Empresa cadastrada com plano de contas padrão.",
       );
       if (ok) setEditing(null);
     });
@@ -288,10 +298,30 @@ export function CompaniesClient({ companies }: { companies: Company[] }) {
               <DialogTitle>{editing?.id ? "Editar empresa" : "Nova empresa"}</DialogTitle>
               {!editing?.id && (
                 <DialogDescription>
-                  A empresa será criada com natureza das contas, categorias de DRE e plano de contas padrão.
+                  {cloneFrom === NO_CLONE
+                    ? "A empresa será criada com natureza das contas, categorias de DRE e plano de contas padrão."
+                    : "A empresa será criada com a natureza das contas, categorias de DRE, plano de contas, históricos e zeramento da empresa escolhida abaixo."}
                 </DialogDescription>
               )}
             </DialogHeader>
+            {!editing?.id && companies.length > 0 && (
+              <div className="grid gap-2">
+                <Label htmlFor="cloneFrom">Parâmetros</Label>
+                <Select value={cloneFrom} onValueChange={setCloneFrom}>
+                  <SelectTrigger id="cloneFrom" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_CLONE}>Padrão (plano de contas modelo)</SelectItem>
+                    {companies.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        Replicar de: {c.displayName ?? c.legalName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid gap-2">
               <Label>Tipo de pessoa</Label>
               <ToggleGroup

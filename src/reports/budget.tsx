@@ -2,7 +2,8 @@ import type { Company } from "@/lib/company";
 import type { SearchParams } from "@/reports/types";
 import { desc, eq } from "drizzle-orm";
 import { PageHeader } from "@/components/page-header";
-import { EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/report";
+import { accountName, EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/report";
+import { AccountRow, AccountRowsGroup } from "@/components/report/interactive-rows";
 import { db } from "@/db";
 import { budgets } from "@/db/schema";
 import { formatDate, formatReportMoney, toCents } from "@/lib/accounting";
@@ -82,30 +83,32 @@ export async function BudgetReport({ company, params }: { company: Company; para
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.acc.id} className="border-b border-border/60">
-                <td className="tabular-nums">{r.acc.classification}</td>
-                <td>{r.acc.name}</td>
-                <td className={num}>{formatReportMoney(r.planned)}</td>
-                <td className={num}>{formatReportMoney(r.actual)}</td>
-                <td className={cn(num, r.diff < 0 && "text-destructive")}>{formatReportMoney(r.diff)}</td>
-                <td className={num}>
-                  {r.pct === null ? (
-                    "—"
-                  ) : (
-                    <div className="flex items-center justify-end gap-2">
-                      <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted print:hidden">
-                        <div
-                          className={cn("h-full", r.pct > 100 ? "bg-destructive" : "bg-primary")}
-                          style={{ width: `${Math.min(r.pct, 100)}%` }}
-                        />
+            <AccountRowsGroup period={period}>
+              {rows.map((r) => (
+                <AccountRow key={r.acc.id} accountId={r.acc.id} analytic={r.acc.analytic} className="border-b border-border/60">
+                  <td className="tabular-nums">{r.acc.classification}</td>
+                  <td className={accountName}>{r.acc.name}</td>
+                  <td className={num}>{formatReportMoney(r.planned)}</td>
+                  <td className={num}>{formatReportMoney(r.actual)}</td>
+                  <td className={cn(num, r.diff < 0 && "text-destructive")}>{formatReportMoney(r.diff)}</td>
+                  <td className={num}>
+                    {r.pct === null ? (
+                      "—"
+                    ) : (
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted print:hidden">
+                          <div
+                            className={cn("h-full", r.pct > 100 ? "bg-destructive" : "bg-primary")}
+                            style={{ width: `${Math.min(r.pct, 100)}%` }}
+                          />
+                        </div>
+                        {r.pct.toFixed(1).replace(".", ",")}%
                       </div>
-                      {r.pct.toFixed(1).replace(".", ",")}%
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
+                    )}
+                  </td>
+                </AccountRow>
+              ))}
+            </AccountRowsGroup>
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-foreground/70 font-bold">

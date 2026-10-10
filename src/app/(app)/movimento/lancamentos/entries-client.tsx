@@ -13,9 +13,9 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
-import { AccountPicker, type PickerAccount } from "@/components/account-picker";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { AccountPicker, AccountQuickCreate, type PickerAccount } from "@/components/account-picker";
 import { AttachmentsPanel } from "@/components/attachments-panel";
 import { BulkDeleteBar } from "@/components/bulk-delete-bar";
 import { ActiveFilters, ColumnHead, useUrlTableControls } from "@/components/column-head";
@@ -170,6 +170,7 @@ export function EntriesClient({
   entries: Entry[];
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(blankDraft);
@@ -178,6 +179,7 @@ export function EntriesClient({
   const [filter, setFilter] = useState(query);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
+  const attachmentsRef = useRef<((id: string) => Promise<void>) | null>(null);
   const controls = useUrlTableControls(ENTRY_COLUMNS, table);
 
   function toggleBulkRow(id: string, checked: boolean) {
@@ -215,6 +217,19 @@ export function EntriesClient({
   const openNew = () => start(blankDraft(), null);
   const close = () => setOpen(false);
 
+  // Abre direto um lançamento linkado de outra tela (ex.: clique num lançamento dentro de um relatório).
+  useEffect(() => {
+    const abrir = searchParams.get("abrir");
+    if (!abrir) return;
+    const entry = entries.find((e) => e.id === abrir);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- abre o lançamento indicado por um deep link (vindo de um relatório)
+    if (entry) openEntry(entry);
+    const p = new URLSearchParams(searchParams);
+    p.delete("abrir");
+    router.replace(`?${p.toString()}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const update = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
   const setPartida = (patch: Partial<Partida>) =>
     setDraft((d) => ({ ...d, partidas: d.partidas.map((p, i) => (i === current ? { ...p, ...patch } : p)) }));
@@ -246,6 +261,7 @@ export function EntriesClient({
         lines,
       });
       if (toastResult(result, draft.id ? "Lançamento atualizado." : `Lançamento nº ${result.ok ? result.data?.number : ""} gravado.`)) {
+        if (result.ok && result.data) await attachmentsRef.current?.(result.data.id);
         close();
       }
     });
@@ -269,7 +285,7 @@ export function EntriesClient({
   return (
     <div className="grid gap-6">
       <Dialog open={open} onOpenChange={(o) => !o && close()}>
-        <DialogContent className="grid max-h-[90vh] gap-0 overflow-x-hidden overflow-y-auto p-0 sm:max-w-3xl">
+        <DialogContent className="no-scrollbar grid max-h-[90vh] gap-0 overflow-x-hidden overflow-y-auto p-0 sm:max-w-3xl">
           <div className="grid gap-x-6 gap-y-1 border-b bg-muted/50 px-4 py-3 pr-12 text-sm sm:grid-cols-[auto_1fr_auto]">
             <div>
               <div className="text-xs font-semibold">Lançamento nº</div>
@@ -393,29 +409,35 @@ export function EntriesClient({
                 <Label htmlFor="debit-account" className="font-semibold">
                   Conta débito
                 </Label>
-                <AccountPicker
-                  id="debit-account"
-                  accounts={accounts}
-                  value={partida.debitAccountId}
-                  onChange={(debitAccountId) => setPartida({ debitAccountId })}
-                  allowClear={total > 1}
-                  className={cn("min-w-0", readOnly && "pointer-events-none opacity-90")}
-                  placeholder="Conta a débito"
-                />
+                <div className="flex gap-2">
+                  <AccountPicker
+                    id="debit-account"
+                    accounts={accounts}
+                    value={partida.debitAccountId}
+                    onChange={(debitAccountId) => setPartida({ debitAccountId })}
+                    allowClear={total > 1}
+                    className={cn("min-w-0 flex-1", readOnly && "pointer-events-none opacity-90")}
+                    placeholder="Conta a débito"
+                  />
+                  {!readOnly && <AccountQuickCreate accounts={accounts} onCreated={(debitAccountId) => setPartida({ debitAccountId })} />}
+                </div>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="credit-account" className="font-semibold">
                   Conta crédito
                 </Label>
-                <AccountPicker
-                  id="credit-account"
-                  accounts={accounts}
-                  value={partida.creditAccountId}
-                  onChange={(creditAccountId) => setPartida({ creditAccountId })}
-                  allowClear={total > 1}
-                  className={cn("min-w-0", readOnly && "pointer-events-none opacity-90")}
-                  placeholder="Conta a crédito"
-                />
+                <div className="flex gap-2">
+                  <AccountPicker
+                    id="credit-account"
+                    accounts={accounts}
+                    value={partida.creditAccountId}
+                    onChange={(creditAccountId) => setPartida({ creditAccountId })}
+                    allowClear={total > 1}
+                    className={cn("min-w-0 flex-1", readOnly && "pointer-events-none opacity-90")}
+                    placeholder="Conta a crédito"
+                  />
+                  {!readOnly && <AccountQuickCreate accounts={accounts} onCreated={(creditAccountId) => setPartida({ creditAccountId })} />}
+                </div>
               </div>
               <div className="grid gap-2 sm:w-56">
                 <Label htmlFor="value" className="font-semibold">
@@ -427,20 +449,20 @@ export function EntriesClient({
               <fieldset className="grid grid-cols-3 gap-2 rounded-md border px-3 pb-2 text-xs tabular-nums sm:text-sm">
                 <legend className="px-1 text-xs text-muted-foreground">Status</legend>
                 <div>
-                  <span className="text-muted-foreground">Débitos x Créditos: </span>
+                  <span className="text-muted-foreground">Diferença: </span>
                   <span className={cn("font-semibold", diff !== 0 ? "text-destructive" : "text-primary")}>{formatMoney(Math.abs(diff))}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Débitos: </span>
+                  <span className="text-muted-foreground">Débito: </span>
                   <span className="font-semibold">{formatMoney(totalD)}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Créditos: </span>
+                  <span className="text-muted-foreground">Crédito: </span>
                   <span className="font-semibold">{formatMoney(totalC)}</span>
                 </div>
               </fieldset>
 
-              <AttachmentsPanel entryType="lancamento" entryId={draft.id} attachments={selected?.attachments ?? []} />
+              <AttachmentsPanel entryType="lancamento" entryId={draft.id} attachments={selected?.attachments ?? []} stagedRef={attachmentsRef} />
             </TabsContent>
           </Tabs>
 

@@ -24,7 +24,7 @@ import { todayIso } from "@/lib/period";
 import type { Column } from "@/lib/table-controls";
 import { toastResult } from "@/lib/toast-result";
 import { cn } from "@/lib/utils";
-import { investmentSeries, type InvestmentMovement } from "@/lib/investment-series";
+import { annualizedReturn, investmentSeries, type InvestmentMovement } from "@/lib/investment-series";
 import { deleteInvestments, deleteValuation, saveInvestment, saveValuation } from "./actions";
 import { InvestmentDetail } from "./investment-detail";
 
@@ -39,10 +39,11 @@ type Investment = {
   lastValuation: { date: string; balance: number } | null;
   balance: number;
 };
+type Row = Investment & { rate: number | null };
 type Valuation = { id: string; investmentId: string; date: string; cents: number };
 type Draft = { id?: string; name: string; kind: InvestmentKind; institution: string; notes: string; active: boolean };
 
-const COLUMNS: Column<Investment>[] = [
+const COLUMNS: Column<Row>[] = [
   { id: "name", label: "Aplicação", value: (i) => i.name },
   {
     id: "kind",
@@ -54,6 +55,7 @@ const COLUMNS: Column<Investment>[] = [
   { id: "institution", label: "Instituição", type: "select", value: (i) => i.institution },
   { id: "invested", label: "Aportes líquidos", type: "money", value: (i) => i.invested },
   { id: "balance", label: "Saldo atual", type: "money", value: (i) => i.balance },
+  { id: "rate", label: "Taxa (a.a.)", type: "number", value: (i) => i.rate },
   {
     id: "active",
     label: "Situação",
@@ -83,7 +85,19 @@ export function InvestmentsClient({
   const [valuation, setValuation] = useState({ date: todayIso(), cents: 0 });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
-  const table = useTableControls(investments, COLUMNS);
+  const withRate: Row[] = useMemo(
+    () =>
+      investments.map((i) => ({
+        ...i,
+        rate: annualizedReturn(
+          movements.filter((m) => m.investmentId === i.id),
+          valuations.filter((v) => v.investmentId === i.id),
+          today,
+        ),
+      })),
+    [investments, movements, valuations, today],
+  );
+  const table = useTableControls(withRate, COLUMNS);
   const { rows, pagination } = usePagination(table.rows);
   // Capital aplicado e rendimentos de cada aplicação (o saldo inicial informado conta como capital, não como rendimento).
   const totals = useMemo(() => {
@@ -177,6 +191,7 @@ export function InvestmentsClient({
                 <ColumnHead controls={table.controls} id="institution" className="hidden lg:table-cell" />
                 <ColumnHead controls={table.controls} id="invested" className="hidden text-right sm:table-cell" />
                 <ColumnHead controls={table.controls} id="balance" className="text-right" />
+                <ColumnHead controls={table.controls} id="rate" className="hidden text-right lg:table-cell" />
                 <ColumnHead controls={table.controls} id="active" className="hidden md:table-cell" />
                 <TableHead className="w-36 text-right">Ações</TableHead>
               </TableRow>
@@ -184,7 +199,7 @@ export function InvestmentsClient({
             <TableBody>
               {table.rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground">
                     {investments.length === 0 ? "Nenhuma aplicação cadastrada." : "Nenhuma aplicação encontrada."}
                   </TableCell>
                 </TableRow>
@@ -219,6 +234,15 @@ export function InvestmentsClient({
                     {i.lastValuation && (
                       <div className="text-xs text-muted-foreground">saldo informado em {formatDate(i.lastValuation.date)}</div>
                     )}
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      "hidden text-right tabular-nums lg:table-cell",
+                      i.rate !== null && i.rate < 0 && "text-destructive",
+                      i.rate !== null && i.rate > 0 && "text-emerald-600 dark:text-emerald-400",
+                    )}
+                  >
+                    {i.rate === null ? <span className="text-muted-foreground">—</span> : `${(i.rate * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`}
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     <Badge variant={i.active ? "outline" : "secondary"}>{i.active ? "Ativa" : "Encerrada"}</Badge>

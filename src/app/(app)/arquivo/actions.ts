@@ -52,6 +52,8 @@ export async function saveAccount(input: z.input<typeof accountSchema>) {
     }
     const duplicate = chart.find((a) => a.classification === data.classification && a.id !== data.id);
     if (duplicate) throw new UserError(`A classificação ${data.classification} já é usada por "${duplicate.name}".`);
+    // Contas sintéticas (grupos) sempre em caixa alta, para destacar na hierarquia do plano de contas.
+    const name = isAnalytic(data.classification) ? data.name : data.name.toUpperCase();
 
     if (!data.id) {
       const created = await db.transaction(async (tx) => {
@@ -66,7 +68,7 @@ export async function saveAccount(input: z.input<typeof accountSchema>) {
             companyId,
             reducedCode: Number(next),
             classification: data.classification,
-            name: data.name,
+            name,
             dreCategoryId: data.dreCategoryId,
           })
           .returning({ id: accounts.id });
@@ -84,7 +86,7 @@ export async function saveAccount(input: z.input<typeof accountSchema>) {
       await db.transaction(async (tx) => {
         await tx
           .update(accounts)
-          .set({ classification: data.classification, name: data.name, dreCategoryId: data.dreCategoryId })
+          .set({ classification: data.classification, name, dreCategoryId: data.dreCategoryId })
           .where(and(eq(accounts.id, data.id!), eq(accounts.companyId, companyId)));
         if (moved && !isAnalytic(current.classification)) {
           // Leva junto as contas filhas da sintética reclassificada.

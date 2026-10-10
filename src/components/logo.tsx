@@ -1,13 +1,14 @@
-import { Calculator } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 export function Logo({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-2 font-semibold", className)}>
-      <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-        <Calculator className="size-4" />
+      <span className="relative flex size-8 shrink-0 items-center justify-center">
+        <Image src="/brand/nedemy-symbol.png" alt="" width={32} height={32} className="dark:hidden" priority />
+        <Image src="/brand/nedemy-symbol-white.png" alt="" width={32} height={32} className="hidden dark:block" priority />
       </span>
-      <span className="text-lg leading-none">Easy Accountings</span>
+      <span className="font-heading text-lg leading-none tracking-wide">NEDEMY</span>
     </div>
   );
 }

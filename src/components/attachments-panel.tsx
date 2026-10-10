@@ -1,7 +1,7 @@
 "use client";
 
 import { Download, Loader2, Paperclip, RefreshCw, Trash2, Upload } from "lucide-react";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { ConfirmAction } from "@/components/confirm-button";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,24 +28,34 @@ export function AttachmentsPanel({
   entryType,
   entryId,
   attachments,
+  stagedRef,
 }: {
   entryType: EntryType;
   entryId?: string;
   attachments: Attachment[];
+  /**
+   * Sem `entryId` (lançamento ainda não salvo), os arquivos escolhidos ficam pendentes aqui. Depois que o
+   * lançamento é criado, o formulário chama `stagedRef.current(novoId)` para enviar o que ficou pendente.
+   */
+  stagedRef?: React.RefObject<((newEntryId: string) => Promise<void>) | null>;
 }) {
   const [pending, startTransition] = useTransition();
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [staged, setStaged] = useState<File[]>([]);
   const uploadInput = useRef<HTMLInputElement>(null);
+  const stagedInput = useRef<HTMLInputElement>(null);
   const replaceInput = useRef<HTMLInputElement>(null);
   const replacingId = useRef<string | null>(null);
 
-  if (!entryId) {
-    return (
-      <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
-        Salve o lançamento para anexar arquivos.
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!stagedRef) return;
+    stagedRef.current = async (newEntryId: string) => {
+      if (staged.length === 0) return;
+      const formData = new FormData();
+      for (const f of staged) formData.append("files", f);
+      await uploadAttachments(entryType, newEntryId, formData);
+    };
+  });
 
   function onUploadChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
@@ -71,6 +81,55 @@ export function AttachmentsPanel({
     const result = await getAttachmentUrl(id);
     setDownloadingId(null);
     if (toastResult(result) && result.ok) window.open(result.data!.url, "_blank");
+  }
+
+  if (!entryId) {
+    return (
+      <div className="grid gap-3">
+        <div className="flex items-center justify-between">
+          <Label className="flex items-center gap-1.5">
+            <Paperclip className="size-4" /> Anexos
+          </Label>
+          <Button type="button" variant="outline" size="sm" onClick={() => stagedInput.current?.click()}>
+            <Upload /> Anexar arquivos
+          </Button>
+          <input
+            ref={stagedInput}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const files = e.target.files;
+              e.target.value = "";
+              if (files && files.length > 0) setStaged((s) => [...s, ...Array.from(files)]);
+            }}
+          />
+        </div>
+        {staged.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum anexo. Os arquivos escolhidos aqui são enviados ao salvar.</p>
+        ) : (
+          <ul className="grid gap-2">
+            {staged.map((f, i) => (
+              <li key={i} className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed p-2 text-sm">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">{f.name}</div>
+                  <div className="text-xs text-muted-foreground">{formatSize(f.size)} · enviado ao salvar</div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Remover"
+                  onClick={() => setStaged((s) => s.filter((_, j) => j !== i))}
+                >
+                  <Trash2 className="text-destructive" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
   }
 
   return (

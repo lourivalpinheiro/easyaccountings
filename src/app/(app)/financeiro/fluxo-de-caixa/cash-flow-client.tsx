@@ -3,6 +3,7 @@
 import {
   ArrowDownCircle,
   ArrowUpCircle,
+  BookOpen,
   CalendarX,
   CreditCard,
   FileText,
@@ -16,7 +17,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
+import { AccountPicker, AccountQuickCreate, type PickerAccount } from "@/components/account-picker";
 import { AttachmentsPanel } from "@/components/attachments-panel";
 import { ActiveFilters, ColumnHead, useUrlTableControls } from "@/components/column-head";
 import { BulkDeleteBar } from "@/components/bulk-delete-bar";
@@ -32,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatDate, formatMoney } from "@/lib/accounting";
 import {
@@ -52,6 +55,7 @@ import { deleteCashFlowEntries, deleteCashFlowEntry, deleteCashFlowSeriesFrom, s
 import { CASH_FLOW_COLUMNS } from "./columns";
 
 type Attachment = { id: string; fileName: string; mimeType: string; sizeBytes: number; isPublic: boolean };
+type LinkedJournal = { journalEntryId: string; entryNumber: number; bankAccountId: string; counterAccountId: string; historyCode: number | null };
 type Entry = {
   id: string;
   date: string;
@@ -63,7 +67,9 @@ type Entry = {
   seriesId: string | null;
   investmentId: string | null;
   attachments: Attachment[];
+  contabil: LinkedJournal | null;
 };
+type ContabilDraft = { bankAccountId: string | null; counterAccountId: string | null; historyCode: string };
 type Draft = {
   id?: string;
   date: string;
@@ -74,9 +80,15 @@ type Draft = {
   frequency: Frequency;
   occurrences: number;
   investmentId: string | null;
+  contabilEnabled: boolean;
+  contabil: ContabilDraft;
+  /** Vínculo contábil que já existia ao abrir o formulário (para saber se precisa desvincular ao salvar). */
+  originallyLinked: boolean;
 };
 
 const NO_INVESTMENT = "nenhuma";
+const NO_HISTORY = "nenhum";
+const blankContabil = (): ContabilDraft => ({ bankAccountId: null, counterAccountId: null, historyCode: "" });
 
 const TYPE_STYLE: Record<FlowType, { icon: typeof Wallet; tone: string; on: string; button: string }> = {
   entrada: {
@@ -113,6 +125,8 @@ export function CashFlowClient({
   summary,
   categories,
   investments,
+  accounts,
+  histories,
   entries,
 }: {
   period: { from: string; to: string };
@@ -122,6 +136,8 @@ export function CashFlowClient({
   summary: { previous: number; inflow: number; outflow: number; byType: Record<FlowType, number> };
   categories: string[];
   investments: { id: string; name: string; active: boolean }[];
+  accounts: PickerAccount[];
+  histories: { code: number; description: string }[];
   entries: Entry[];
 }) {
   const router = useRouter();
@@ -129,6 +145,7 @@ export function CashFlowClient({
   const [q, setQ] = useState(query);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
+  const attachmentsRef = useRef<((id: string) => Promise<void>) | null>(null);
   const controls = useUrlTableControls(CASH_FLOW_COLUMNS, table, {
     category: categories.map((c) => ({ value: c, label: c })),
   });
@@ -160,20 +177,61 @@ export function CashFlowClient({
   };
 
   const open = (type: FlowType) =>
-    setDraft({ date: todayIso(), type, description: "", category: "", cents: 0, frequency: "unica", occurrences: 12, investmentId: null });
+    setDraft({
+      date: todayIso(),
+      type,
+      description: "",
+      category: "",
+      cents: 0,
+      frequency: "unica",
+      occurrences: 12,
+      investmentId: null,
+      contabilEnabled: false,
+      contabil: blankContabil(),
+      originallyLinked: false,
+    });
+
+  const edit = (e: Entry) =>
+    setDraft({
+      ...e,
+      category: e.category ?? "",
+      occurrences: 1,
+      contabilEnabled: Boolean(e.contabil),
+      contabil: e.contabil
+        ? { bankAccountId: e.contabil.bankAccountId, counterAccountId: e.contabil.counterAccountId, historyCode: e.contabil.historyCode ? String(e.contabil.historyCode) : "" }
+        : blankContabil(),
+      originallyLinked: Boolean(e.contabil),
+    });
+
+  const allowContabil = Boolean(draft?.id) || draft?.frequency === "unica";
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!draft) return;
+    const contabilPayload = !allowContabil
+      ? undefined
+      : draft.contabilEnabled
+        ? draft.contabil.bankAccountId && draft.contabil.counterAccountId
+          ? {
+              bankAccountId: draft.contabil.bankAccountId,
+              counterAccountId: draft.contabil.counterAccountId,
+              historyCode: draft.contabil.historyCode ? Number(draft.contabil.historyCode) : null,
+            }
+          : undefined
+        : draft.originallyLinked
+          ? null
+          : undefined;
     startTransition(async () => {
+      const result = await saveCashFlowEntry({ ...draft, contabil: contabilPayload });
       const ok = toastResult(
-        await saveCashFlowEntry(draft),
+        result,
         draft.id
           ? "Registro atualizado."
           : draft.frequency !== "unica"
             ? `${draft.occurrences} ocorrências registradas.`
             : "Movimentação registrada.",
       );
+      if (ok && result.ok && result.data) await attachmentsRef.current?.(result.data.id);
       if (ok) setDraft(null);
     });
   }
@@ -215,13 +273,11 @@ export function CashFlowClient({
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-        {FLOW_TYPES.map((t) => (
-          <Button key={t} onClick={() => open(t)} className={TYPE_STYLE[t].button}>
-            <Plus /> {FLOW_TYPE_LABELS[t].singular}
-          </Button>
-        ))}
-        <Button variant="outline" className="col-span-2 sm:ml-auto" asChild>
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => open("entrada")}>
+          <Plus /> Nova movimentação
+        </Button>
+        <Button variant="outline" className="sm:ml-auto" asChild>
           <Link href={`/financeiro/relatorio?de=${period.from}&ate=${period.to}`}>
             <FileText /> Emitir relatório
           </Link>
@@ -293,6 +349,12 @@ export function CashFlowClient({
                           aria-label={`Recorrente: ${FREQUENCY_LABELS[e.frequency]}`}
                         />
                       )}
+                      {e.contabil && (
+                        <BookOpen
+                          className="size-3.5 shrink-0 text-muted-foreground"
+                          aria-label={`Lançamento contábil nº ${e.contabil.entryNumber}`}
+                        />
+                      )}
                     </div>
                     <div className={cn("text-xs lg:hidden", TYPE_STYLE[e.type].tone)}>{FLOW_TYPE_LABELS[e.type].singular}</div>
                     {e.category && <div className="truncate text-xs text-muted-foreground md:hidden">{e.category}</div>}
@@ -312,7 +374,7 @@ export function CashFlowClient({
                       variant="ghost"
                       size="icon"
                       aria-label="Editar"
-                      onClick={() => setDraft({ ...e, category: e.category ?? "", occurrences: 1 })}
+                      onClick={() => edit(e)}
                     >
                       <Pencil />
                     </Button>
@@ -358,6 +420,12 @@ export function CashFlowClient({
               <DialogHeader>
                 <DialogTitle>{draft.id ? "Editar movimentação" : "Nova movimentação"}</DialogTitle>
               </DialogHeader>
+              <Tabs defaultValue="financeiro">
+                <TabsList>
+                  <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
+                  <TabsTrigger value="contabilidade">Contabilidade</TabsTrigger>
+                </TabsList>
+                <TabsContent value="financeiro" className="grid gap-4 pt-2">
               <ToggleGroup
                 type="single"
                 variant="outline"
@@ -478,10 +546,101 @@ export function CashFlowClient({
                   </Select>
                 </div>
               )}
+                </TabsContent>
+                <TabsContent value="contabilidade" className="grid gap-4 pt-2">
+                  {!allowContabil ? (
+                    <p className="text-sm text-muted-foreground">
+                      Disponível apenas para lançamentos únicos. Crie a recorrência primeiro e, depois, edite a ocorrência
+                      desejada para ligá-la à contabilidade.
+                    </p>
+                  ) : (
+                    <>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={draft.contabilEnabled}
+                          onCheckedChange={(v) => setDraft({ ...draft, contabilEnabled: v === true })}
+                        />
+                        Lançar também na contabilidade
+                      </label>
+                      {draft.contabilEnabled && (
+                        <>
+                          <div className="grid gap-2">
+                            <Label>Conta de caixa/banco</Label>
+                            <div className="flex gap-2">
+                              <AccountPicker
+                                accounts={accounts}
+                                value={draft.contabil.bankAccountId}
+                                onChange={(bankAccountId) => setDraft({ ...draft, contabil: { ...draft.contabil, bankAccountId } })}
+                                placeholder="Selecione a conta de caixa ou banco"
+                                className="flex-1"
+                              />
+                              <AccountQuickCreate
+                                accounts={accounts}
+                                onCreated={(bankAccountId) => setDraft({ ...draft, contabil: { ...draft.contabil, bankAccountId } })}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Conta de contrapartida</Label>
+                            <div className="flex gap-2">
+                              <AccountPicker
+                                accounts={accounts}
+                                value={draft.contabil.counterAccountId}
+                                onChange={(counterAccountId) => setDraft({ ...draft, contabil: { ...draft.contabil, counterAccountId } })}
+                                placeholder="Selecione a conta de contrapartida"
+                                className="flex-1"
+                              />
+                              <AccountQuickCreate
+                                accounts={accounts}
+                                onCreated={(counterAccountId) => setDraft({ ...draft, contabil: { ...draft.contabil, counterAccountId } })}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="cf-history">Histórico (opcional)</Label>
+                            <Select
+                              value={draft.contabil.historyCode || NO_HISTORY}
+                              onValueChange={(v) => setDraft({ ...draft, contabil: { ...draft.contabil, historyCode: v === NO_HISTORY ? "" : v } })}
+                            >
+                              <SelectTrigger id="cf-history" className="w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent position="popper">
+                                <SelectItem value={NO_HISTORY}>Nenhum</SelectItem>
+                                {histories.map((h) => (
+                                  <SelectItem key={h.code} value={String(h.code)}>
+                                    {h.code} - {h.description}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {!draft.contabil.bankAccountId || !draft.contabil.counterAccountId ? (
+                            <p className="text-xs text-destructive">Escolha as duas contas para lançar na contabilidade.</p>
+                          ) : null}
+                        </>
+                      )}
+                      {draft.id && entries.find((e) => e.id === draft.id)?.contabil && (
+                        <p className="text-xs text-muted-foreground">
+                          Lançamento contábil nº {entries.find((e) => e.id === draft.id)!.contabil!.entryNumber}.{" "}
+                          <Link
+                            href={`/movimento/lancamentos?de=${draft.date}&ate=${draft.date}&q=${entries.find((e) => e.id === draft.id)!.contabil!.entryNumber}&abrir=${entries.find((e) => e.id === draft.id)!.contabil!.journalEntryId}`}
+                            className="text-primary underline"
+                            target="_blank"
+                          >
+                            Abrir lançamento
+                          </Link>
+                        </p>
+                      )}
+                    </>
+                  )}
+                </TabsContent>
+              </Tabs>
               <AttachmentsPanel
                 entryType="movimentacao"
                 entryId={draft.id}
                 attachments={entries.find((e) => e.id === draft.id)?.attachments ?? []}
+                stagedRef={attachmentsRef}
               />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setDraft(null)}>
@@ -494,7 +653,8 @@ export function CashFlowClient({
                     draft.cents <= 0 ||
                     (!draft.id &&
                       draft.frequency !== "unica" &&
-                      (draft.occurrences < 2 || draft.occurrences > MAX_OCCURRENCES))
+                      (draft.occurrences < 2 || draft.occurrences > MAX_OCCURRENCES)) ||
+                    (draft.contabilEnabled && (!draft.contabil.bankAccountId || !draft.contabil.counterAccountId))
                   }
                 >
                   Salvar

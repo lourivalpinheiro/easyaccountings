@@ -92,6 +92,27 @@
       "when": 1791557571703,
       "tag": "0012_planejamento_aplicacoes",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791581229704,
+      "tag": "0013_wealthy_starjammers",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791581543722,
+      "tag": "0014_green_red_shift",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1791584000921,
+      "tag": "0015_greedy_hercules",
+      "breakpoints": true
     }
   ]
 }

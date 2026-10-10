@@ -339,7 +339,7 @@ function PlanDocument({ ctx, meta, tocPages }: { ctx: Ctx; meta: PdfMeta; tocPag
     </View>
   );
   return (
-    <Document title={snap.title} author={meta.companyName} subject={`Planejamento financeiro ${snap.dataset.year}`} creator="Easy Accountings" language="pt-BR">
+    <Document title={snap.title} author={meta.companyName} subject={`Planejamento financeiro ${snap.dataset.year}`} creator="Nedemy Finanças" language="pt-BR">
       <Page size="A4" style={{ ...s.page, justifyContent: "space-between" }}>
         <View style={{ height: 6, backgroundColor: PRIMARY, marginHorizontal: -MARGIN, marginTop: -MARGIN }} />
         <View>

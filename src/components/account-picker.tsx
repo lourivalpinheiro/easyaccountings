@@ -1,7 +1,10 @@
 "use client";
 
-import { Check, ChevronsUpDown } from "lucide-react";
-import { useState } from "react";
+import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import { useState, useTransition } from "react";
+import { saveAccount } from "@/app/(app)/arquivo/actions";
+import { suggestChildClassification } from "@/lib/accounting";
+import { toastResult } from "@/lib/toast-result";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -11,6 +14,9 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +27,84 @@ export type PickerAccount = {
   name: string;
   analytic: boolean;
 };
+
+/**
+ * Botão "Criar conta": cadastra uma conta analítica nova a partir de uma sintética existente, sugerindo a
+ * próxima classificação livre. Usado nas telas de lançamento de todos os módulos, para não precisar sair
+ * para o Plano de Contas só para cadastrar uma conta que falta.
+ */
+export function AccountQuickCreate({ accounts, onCreated }: { accounts: PickerAccount[]; onCreated: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [parentId, setParentId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [pending, startTransition] = useTransition();
+  const synthetics = accounts.filter((a) => !a.analytic);
+  const parent = synthetics.find((a) => a.id === parentId);
+  const classifications = accounts.map((a) => a.classification);
+  const classification = parent ? suggestChildClassification(parent.classification, classifications) : "";
+
+  const reset = () => {
+    setParentId(null);
+    setName("");
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) reset();
+      }}
+    >
+      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <Plus /> Criar conta
+      </Button>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Nova conta contábil</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <div className="grid gap-2">
+            <Label>Conta sintética (grupo)</Label>
+            <AccountPicker
+              accounts={synthetics}
+              value={parentId}
+              onChange={setParentId}
+              placeholder="Selecione o grupo da nova conta"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label>Descrição</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Caixa geral" autoFocus />
+          </div>
+          {parent && (
+            <p className="text-xs text-muted-foreground">
+              Classificação: <span className="tabular-nums">{classification}</span>
+            </p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            disabled={pending || !classification || !name.trim()}
+            onClick={() =>
+              startTransition(async () => {
+                const result = await saveAccount({ classification, name: name.trim(), dreCategoryId: null });
+                if (toastResult(result, "Conta criada.") && result.ok) {
+                  onCreated((result.data as { id: string }).id);
+                  setOpen(false);
+                  reset();
+                }
+              })
+            }
+          >
+            {pending ? "Criando..." : "Criar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function AccountPicker({
   accounts,

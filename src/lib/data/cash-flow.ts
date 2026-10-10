@@ -1,9 +1,56 @@
 import "server-only";
-import { and, asc, eq, gte, lt, lte, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, lt, lte, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
-import { cashFlowEntries } from "@/db/schema";
+import { cashFlowEntries, journalEntries, journalLines } from "@/db/schema";
 import { FLOW_TYPES, isInflow, signedCents, type FlowType } from "@/lib/cash-flow-types";
 import { todayIso } from "@/lib/period";
+
+export type LinkedJournalInfo = {
+  journalEntryId: string;
+  entryNumber: number;
+  bankAccountId: string;
+  counterAccountId: string;
+  historyCode: number | null;
+};
+
+/**
+ * Dados do lançamento contábil vinculado a cada movimentação (para pré-preencher a aba Contabilidade ao editar).
+ * As duas linhas do lançamento são gravadas sempre na mesma ordem: posição 0 é a conta de caixa/banco, 1 é a contrapartida.
+ */
+export async function getLinkedJournalInfo(cashFlowEntryIds: string[]): Promise<Map<string, LinkedJournalInfo>> {
+  if (cashFlowEntryIds.length === 0) return new Map();
+  const rows = await db
+    .select({
+      cashFlowEntryId: cashFlowEntries.id,
+      journalEntryId: journalEntries.id,
+      entryNumber: journalEntries.number,
+      historyCode: journalEntries.historyCode,
+      accountId: journalLines.accountId,
+      position: journalLines.position,
+    })
+    .from(cashFlowEntries)
+    .innerJoin(journalEntries, eq(journalEntries.id, cashFlowEntries.journalEntryId))
+    .innerJoin(journalLines, eq(journalLines.entryId, journalEntries.id))
+    .where(and(inArray(cashFlowEntries.id, cashFlowEntryIds), isNotNull(cashFlowEntries.journalEntryId)))
+    .orderBy(asc(journalLines.position));
+
+  const byEntry = new Map<string, typeof rows>();
+  for (const r of rows) byEntry.set(r.cashFlowEntryId, [...(byEntry.get(r.cashFlowEntryId) ?? []), r]);
+
+  const result = new Map<string, LinkedJournalInfo>();
+  for (const [id, lines] of byEntry) {
+    const [bank, counter] = lines;
+    if (!bank || !counter) continue;
+    result.set(id, {
+      journalEntryId: bank.journalEntryId,
+      entryNumber: bank.entryNumber,
+      bankAccountId: bank.accountId,
+      counterAccountId: counter.accountId,
+      historyCode: bank.historyCode,
+    });
+  }
+  return result;
+}
 
 /** Saldo do caixa (entradas - saídas, em centavos) antes de uma data. */
 export async function getCashBalanceBefore(companyId: string, date: string) {

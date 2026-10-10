@@ -49,7 +49,8 @@ export const investmentKind = pgEnum("investment_kind", [
   "cripto",
   "outro",
 ]);
-export const planSection = pgEnum("plan_section", ["diagnostico", "planejamento", "orcamentos", "controle", "cenarios"]);
+export const planSection = pgEnum("plan_section", ["diagnostico", "planejamento", "orcamentos", "cenarios"]);
+export const provisionType = pgEnum("provision_type", ["pagar", "receber"]);
 export const nature = pgEnum("nature", ["D", "C"]);
 export const entrySide = pgEnum("entry_side", ["D", "C"]);
 export const reconciliationModule = pgEnum("reconciliation_module", ["contabil", "financeiro", "ambos"]);
@@ -300,6 +301,8 @@ export const cashFlowEntries = pgTable(
     seriesId: uuid("series_id"),
     /** Aplicação financeira movimentada: aporte (economia) ou resgate (entrada). */
     investmentId: uuid("investment_id").references((): AnyPgColumn => investments.id, { onDelete: "set null" }),
+    /** Lançamento contábil correspondente, quando a movimentação também é escriturada na contabilidade. */
+    journalEntryId: uuid("journal_entry_id").references(() => journalEntries.id, { onDelete: "set null" }),
     createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
     ...timestamps,
   },
@@ -307,6 +310,32 @@ export const cashFlowEntries = pgTable(
     index("cash_flow_entries_company_date").on(t.companyId, t.date),
     index("cash_flow_entries_series").on(t.seriesId),
   ],
+).enableRLS();
+
+/**
+ * Conta a pagar ou a receber (provisionamento). Não movimenta caixa nem contabilidade sozinha — só quando é
+ * baixada, o que gera a movimentação de fluxo de caixa e o lançamento contábil correspondentes.
+ */
+export const provisions = pgTable(
+  "provisions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    type: provisionType("type").notNull(),
+    description: text("description").notNull(),
+    category: text("category"),
+    dueDate: date("due_date").notNull(),
+    amount: numeric("amount", { precision: 18, scale: 2 }).notNull(),
+    /** Preenchidos só quando a provisão é baixada. */
+    settledAt: date("settled_at"),
+    cashFlowEntryId: uuid("cash_flow_entry_id").references(() => cashFlowEntries.id, { onDelete: "set null" }),
+    journalEntryId: uuid("journal_entry_id").references(() => journalEntries.id, { onDelete: "set null" }),
+    createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [index("provisions_company_due").on(t.companyId, t.dueDate)],
 ).enableRLS();
 
 /** Comprovantes anexados a um lançamento contábil ou a uma movimentação do fluxo de caixa. */

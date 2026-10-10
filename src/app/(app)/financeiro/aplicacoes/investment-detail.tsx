@@ -9,7 +9,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate, formatMoney } from "@/lib/accounting";
 import { INVESTMENT_KIND_LABELS, type InvestmentKind } from "@/lib/investment-types";
-import { investmentSeries, openingCapital, type InvestmentMovement, type InvestmentValuation } from "@/lib/investment-series";
+import {
+  annualizedReturn,
+  firstEventDate,
+  investmentSeries,
+  openingCapital,
+  type InvestmentMovement,
+  type InvestmentValuation,
+} from "@/lib/investment-series";
 import { MONTH_SHORT } from "@/lib/plan/calc";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +41,8 @@ export function InvestmentDetail({
 }) {
   const series = useMemo(() => investmentSeries(movements, valuations, today), [movements, valuations, today]);
   const opening = useMemo(() => openingCapital(movements, valuations), [movements, valuations]);
+  const first = useMemo(() => firstEventDate(movements, valuations), [movements, valuations]);
+  const rate = useMemo(() => annualizedReturn(movements, valuations, today), [movements, valuations, today]);
   const last = series[series.length - 1];
   const balance = last?.balance ?? 0;
   const capital = last?.capital ?? 0;
@@ -55,9 +64,15 @@ export function InvestmentDetail({
     { label: "Capital aplicado", value: signedMoney(capital), hint: opening.date ? "saldo inicial + aportes - resgates" : "aportes - resgates" },
     { label: "Ganho de capital", value: signedMoney(gain), tone: gain < 0 ? "text-destructive" : gain > 0 ? "text-emerald-600 dark:text-emerald-400" : undefined },
     {
-      label: "Rentabilidade",
+      label: "Rentabilidade no período",
       value: profitability === null ? "—" : `${(profitability * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`,
       hint: "ganho ÷ capital aplicado",
+    },
+    {
+      label: "Taxa anualizada",
+      value: rate === null ? "—" : `${(rate * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% a.a.`,
+      hint: first ? `desde ${formatDate(first)}` : undefined,
+      tone: rate !== null && rate < 0 ? "text-destructive" : rate !== null && rate > 0 ? "text-emerald-600 dark:text-emerald-400" : undefined,
     },
   ];
 
@@ -72,7 +87,7 @@ export function InvestmentDetail({
           <DialogDescription>{investment.institution ?? "Evolução do saldo, aportes e rendimentos."}</DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-5">
           {cards.map((c) => (
             <div key={c.label} className="rounded-md border bg-muted/30 p-2.5">
               <div className="text-xs text-muted-foreground">{c.label}</div>

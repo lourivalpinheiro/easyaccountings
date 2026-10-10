@@ -2,14 +2,13 @@
 import type { FlowType } from "@/lib/cash-flow-types";
 import type { InvestmentKind } from "@/lib/investment-types";
 
-export const PLAN_SECTIONS = ["diagnostico", "planejamento", "orcamentos", "controle", "cenarios"] as const;
+export const PLAN_SECTIONS = ["diagnostico", "planejamento", "orcamentos", "cenarios"] as const;
 export type PlanSection = (typeof PLAN_SECTIONS)[number];
 
 export const PLAN_SECTION_LABELS: Record<PlanSection, { title: string; description: string }> = {
   diagnostico: { title: "Diagnóstico", description: "Situação financeira atual: entradas, saídas, cartão de crédito, economias e aplicações." },
   planejamento: { title: "Planejamento", description: "Metas financeiras, prazos e quanto guardar por mês para alcançá-las." },
   orcamentos: { title: "Orçamentos", description: "Valores orçados por categoria do fluxo de caixa, comparados com o realizado." },
-  controle: { title: "Controle", description: "Acompanhamento do orçado x realizado, metas e alertas ao longo do ano." },
   cenarios: { title: "Cenários", description: "Projeção do fluxo de caixa sob diferentes premissas econômicas." },
 };
 
@@ -24,6 +23,14 @@ export type DocNode = {
   marks?: { type: string; attrs?: Record<string, unknown> }[];
   text?: string;
 };
+
+/** Diferencia um texto em branco (editor vazio) de um que já tem conteúdo digitado. */
+export function sectionHasContent(doc: DocNode | undefined): boolean {
+  if (!doc?.content || doc.content.length === 0) return false;
+  if (doc.content.length > 1) return true;
+  const only = doc.content[0];
+  return only.type !== "paragraph" || Boolean(only.content && only.content.length > 0);
+}
 
 export type ByType = Record<FlowType, number>;
 

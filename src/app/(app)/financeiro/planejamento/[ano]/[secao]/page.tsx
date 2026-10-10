@@ -44,6 +44,7 @@ export default async function PlanSectionPage({ params }: PageProps<"/financeiro
         diagnosisFrom: plan.diagnosisFrom,
         diagnosisTo: plan.diagnosisTo,
         content: plan.content[secao],
+        allContent: plan.content,
         budget: plan.budget,
         goals: plan.goals,
         scenarios: plan.scenarios,

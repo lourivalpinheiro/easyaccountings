@@ -2,8 +2,9 @@ import type { Company } from "@/lib/company";
 import type { SearchParams } from "@/reports/types";
 import { Fragment } from "react";
 import { PageHeader } from "@/components/page-header";
-import { EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/report";
+import { accountName, EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/report";
 import { ReportFilters } from "@/components/report-filters";
+import { ClickableRow } from "@/components/report/interactive-rows";
 import { formatReportBalance, formatDate, formatReportMoney } from "@/lib/accounting";
 import { getChart, getMovements } from "@/lib/data/ledger";
 import { getLedgerLines, groupByDate } from "@/lib/data/reports";
@@ -72,9 +73,13 @@ export async function JournalBookReport({ company, params }: { company: Company;
                     const acc = accountById.get(r.accountId);
                     const firstOfEntry = i === 0 || day.rows[i - 1].entryId !== r.entryId;
                     return (
-                      <tr key={`${r.entryId}-${i}`} className={firstOfEntry ? "border-t border-border/60" : ""}>
+                      <ClickableRow
+                        key={`${r.entryId}-${i}`}
+                        href={`/movimento/lancamentos?de=${day.date}&ate=${day.date}&q=${r.number}&abrir=${r.entryId}`}
+                        className={firstOfEntry ? "border-t border-border/60" : ""}
+                      >
                         <td className="text-right tabular-nums text-muted-foreground">{firstOfEntry ? r.number : ""}</td>
-                        <td>
+                        <td className={accountName}>
                           <span className="tabular-nums text-muted-foreground">{acc?.reducedCode}</span> {acc?.classification} -{" "}
                           {acc?.name}
                         </td>
@@ -85,7 +90,7 @@ export async function JournalBookReport({ company, params }: { company: Company;
                         <td className={num}>{r.side === "D" ? formatReportMoney(r.cents) : ""}</td>
                         <td className={num}>{r.side === "C" ? formatReportMoney(r.cents) : ""}</td>
                         <td className={num}>{formatReportBalance(r.current)}</td>
-                      </tr>
+                      </ClickableRow>
                     );
                   })}
                   <tr className="border-t border-b-2 border-foreground/40 font-semibold">

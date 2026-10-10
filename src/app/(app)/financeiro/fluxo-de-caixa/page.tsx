@@ -2,11 +2,12 @@ import { and, asc, count, desc, eq, gte, ilike, isNotNull, lte, or, type SQL } f
 import type { Metadata } from "next";
 import { NoCompany, PageHeader } from "@/components/page-header";
 import { db } from "@/db";
-import { cashFlowEntries } from "@/db/schema";
+import { cashFlowEntries, historyCodes } from "@/db/schema";
 import { toCents } from "@/lib/accounting";
 import { getAttachmentsByCashFlowEntry } from "@/lib/data/attachments";
-import { getCashBalanceBefore, getCashTotals } from "@/lib/data/cash-flow";
+import { getCashBalanceBefore, getCashTotals, getLinkedJournalInfo } from "@/lib/data/cash-flow";
 import { getInvestmentOptions } from "@/lib/data/investments";
+import { getChart } from "@/lib/data/ledger";
 import { getPageContext } from "@/lib/page-context";
 import { readPeriod } from "@/lib/period";
 import { readTableParams } from "@/lib/table-controls";
@@ -45,7 +46,7 @@ export default async function CashFlowPage({ searchParams }: PageProps<"/finance
   }
   const where = and(...filters);
 
-  const [rows, [{ total }], totals, previous, categories, investmentOptions] = await Promise.all([
+  const [rows, [{ total }], totals, previous, categories, investmentOptions, chart, histories] = await Promise.all([
     db
       .select()
       .from(cashFlowEntries)
@@ -62,8 +63,17 @@ export default async function CashFlowPage({ searchParams }: PageProps<"/finance
       .where(and(eq(cashFlowEntries.companyId, company.id), isNotNull(cashFlowEntries.category)))
       .orderBy(asc(cashFlowEntries.category)),
     getInvestmentOptions(company.id),
+    getChart(company.id),
+    db
+      .select({ code: historyCodes.code, description: historyCodes.description })
+      .from(historyCodes)
+      .where(eq(historyCodes.companyId, company.id))
+      .orderBy(asc(historyCodes.code)),
   ]);
-  const attachmentsByEntry = await getAttachmentsByCashFlowEntry(rows.map((r) => r.id));
+  const [attachmentsByEntry, linkedJournal] = await Promise.all([
+    getAttachmentsByCashFlowEntry(rows.map((r) => r.id)),
+    getLinkedJournalInfo(rows.filter((r) => r.journalEntryId).map((r) => r.id)),
+  ]);
 
   return (
     <>
@@ -76,6 +86,8 @@ export default async function CashFlowPage({ searchParams }: PageProps<"/finance
         summary={{ previous, ...totals }}
         categories={categories.map((c) => c.category!)}
         investments={investmentOptions}
+        accounts={chart.map(({ id, reducedCode, classification, name, analytic }) => ({ id, reducedCode, classification, name, analytic }))}
+        histories={histories}
         entries={rows.map((r) => ({
           id: r.id,
           date: r.date,
@@ -87,6 +99,7 @@ export default async function CashFlowPage({ searchParams }: PageProps<"/finance
           seriesId: r.seriesId,
           investmentId: r.investmentId,
           attachments: attachmentsByEntry.get(r.id) ?? [],
+          contabil: linkedJournal.get(r.id) ?? null,
         }))}
       />
     </>

@@ -35,15 +35,23 @@ export function ReportSheet({
       <h2 className="mb-4 text-center text-base font-bold sm:text-lg tracking-wide uppercase">{title}</h2>
       {children}
       <footer className="mt-6 text-right text-xs text-muted-foreground">
-        Emitido em {formatNowBrasilia()} · Easy Accountings
+        Emitido em {formatNowBrasilia()} · Nedemy Finanças
       </footer>
     </article>
   );
 }
 
 export function ReportTable({ className, ...props }: React.ComponentProps<"table">) {
-  return <table className={cn("report-table w-full border-collapse text-sm [&_td]:px-2 [&_td]:py-1 [&_th]:px-2 [&_th]:py-1.5", className)} {...props} />;
+  return (
+    <table
+      className={cn("report-table w-full border-collapse text-[13px] [&_td]:px-2 [&_td]:py-1 [&_th]:px-2 [&_th]:py-1.5", className)}
+      {...props}
+    />
+  );
 }
+
+/** Nome/descrição de conta: não quebra linha, para manter o alinhamento das colunas de valor mesmo em nomes longos. */
+export const accountName = "whitespace-nowrap";
 
 export function Th({ className, ...props }: React.ComponentProps<"th">) {
   return <th className={cn("border-b-2 border-foreground/70 text-left font-semibold", className)} {...props} />;

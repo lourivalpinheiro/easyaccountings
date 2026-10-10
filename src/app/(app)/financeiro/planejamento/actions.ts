@@ -18,7 +18,7 @@ import { companyAction, UserError } from "@/lib/action-utils";
 import { FLOW_TYPES } from "@/lib/cash-flow-types";
 import { todayIso } from "@/lib/period";
 import { buildDataset, getPlan } from "@/lib/plan/data";
-import { DEFAULT_SCENARIOS, SECTION_TEMPLATES } from "@/lib/plan/templates";
+import { DEFAULT_SCENARIOS } from "@/lib/plan/templates";
 import { PLAN_SECTIONS, type PlanSnapshot } from "@/lib/plan/types";
 import { ANEXOS_BUCKET, randomStoragePath, uploadFile } from "@/lib/storage";
 
@@ -62,7 +62,7 @@ export async function createPlan(input: { year: number; title: string }) {
           title,
           diagnosisFrom: diagnosis.from,
           diagnosisTo: diagnosis.to,
-          content: SECTION_TEMPLATES,
+          content: {},
           createdBy: userId,
         })
         .returning({ id: financialPlans.id });

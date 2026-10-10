@@ -2,8 +2,9 @@ import type { Company } from "@/lib/company";
 import type { SearchParams } from "@/reports/types";
 import { asc, eq } from "drizzle-orm";
 import { PageHeader } from "@/components/page-header";
-import { EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/report";
+import { accountName, EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/report";
 import { ReportFilters } from "@/components/report-filters";
+import { AccountRow, AccountRowsGroup } from "@/components/report/interactive-rows";
 import { db } from "@/db";
 import { explanatoryNotes } from "@/db/schema";
 import { formatReportBalance, formatReportMoney } from "@/lib/accounting";
@@ -73,22 +74,34 @@ export async function BalanceSheetReport({ company, params }: { company: Company
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className={cn("border-b border-border/60", !r.analytic && "font-semibold", r.level === 1 && "bg-muted/50")}>
-                  <td className="tabular-nums">{r.classification}</td>
-                  <td style={{ paddingLeft: `${(r.level - 1) * 1 + 0.5}rem` }}>
-                    {r.name}
-                    {notesByAccount.get(r.id)?.map((n) => (
-                      <a key={n.id} href={`#nota-${n.number}`} className="ml-2 text-xs font-normal text-primary">
-                        (Nota {n.number})
-                      </a>
-                    ))}
-                  </td>
-                  <td className={num}>{formatReportMoney(r.debit)}</td>
-                  <td className={num}>{formatReportMoney(r.credit)}</td>
-                  <td className={num}>{formatReportBalance(r.balance)}</td>
-                </tr>
-              ))}
+              <AccountRowsGroup period={period}>
+                {rows.map((r) => (
+                  <AccountRow
+                    key={r.id}
+                    accountId={r.id}
+                    analytic={r.analytic}
+                    className={cn("border-b border-border/60", !r.analytic && "font-semibold", r.level === 1 && "bg-muted/50")}
+                  >
+                    <td className="tabular-nums">{r.classification}</td>
+                    <td className={accountName} style={{ paddingLeft: `${(r.level - 1) * 1 + 0.5}rem` }}>
+                      {r.name}
+                      {notesByAccount.get(r.id)?.map((n) => (
+                        <a
+                          key={n.id}
+                          href={`#nota-${n.number}`}
+                          className="ml-2 text-xs font-normal text-primary"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          (Nota {n.number})
+                        </a>
+                      ))}
+                    </td>
+                    <td className={num}>{formatReportMoney(r.debit)}</td>
+                    <td className={num}>{formatReportMoney(r.credit)}</td>
+                    <td className={num}>{formatReportBalance(r.balance)}</td>
+                  </AccountRow>
+                ))}
+              </AccountRowsGroup>
             </tbody>
           </ReportTable>
         )}

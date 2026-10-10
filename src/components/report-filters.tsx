@@ -12,11 +12,13 @@ import { Label } from "@/components/ui/label";
 export function ReportFilters({
   period,
   showZeroOption,
+  showSummaryOption,
   children,
   extraParams,
 }: {
   period: { from: string; to: string };
   showZeroOption?: boolean;
+  showSummaryOption?: boolean;
   children?: React.ReactNode;
   extraParams?: Record<string, string | undefined>;
 }) {
@@ -24,6 +26,7 @@ export function ReportFilters({
   const pathname = usePathname();
   const params = useSearchParams();
   const [zero, setZero] = useState(params.get("zeradas") === "1");
+  const [summary, setSummary] = useState(params.get("resumo") === "1");
 
   const apply = (override?: { from: string; to: string }) => {
     const q = new URLSearchParams(params);
@@ -32,6 +35,10 @@ export function ReportFilters({
     if (showZeroOption) {
       if (zero) q.set("zeradas", "1");
       else q.delete("zeradas");
+    }
+    if (showSummaryOption) {
+      if (summary) q.set("resumo", "1");
+      else q.delete("resumo");
     }
     for (const [k, v] of Object.entries(extraParams ?? {})) {
       if (v) q.set(k, v);
@@ -57,6 +64,21 @@ export function ReportFilters({
             }}
           />
           Exibir contas sem saldo
+        </Label>
+      )}
+      {showSummaryOption && (
+        <Label className="flex items-center gap-2 text-xs font-normal">
+          <Checkbox
+            checked={summary}
+            onCheckedChange={(v) => {
+              setSummary(v === true);
+              const q = new URLSearchParams(params);
+              if (v === true) q.set("resumo", "1");
+              else q.delete("resumo");
+              router.push(`${pathname}?${q.toString()}`);
+            }}
+          />
+          Incluir resumo por grupo
         </Label>
       )}
       <Button variant="outline" size="sm" onClick={() => window.print()} className="ml-auto">

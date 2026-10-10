@@ -68,6 +68,35 @@ export function positionAt(date: string, movements: InvestmentMovement[], valuat
   return { balance, capital, gain: balance - capital };
 }
 
+/** Primeira data com movimentação ou saldo informado: o dia em que a aplicação começou a ser acompanhada. */
+export function firstEventDate(movements: InvestmentMovement[], valuations: InvestmentValuation[]): string | null {
+  const dates = [...movements.map((m) => m.date), ...valuations.map((v) => v.date)].sort();
+  return dates[0] ?? null;
+}
+
+const daysBetween = (from: string, to: string) => {
+  const [fy, fm, fd] = from.split("-").map(Number);
+  const [ty, tm, td] = to.split("-").map(Number);
+  return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86400000);
+};
+
+/**
+ * Taxa de rendimento anualizada (CAGR): composta a partir do ganho acumulado desde o dia da primeira
+ * movimentação ou saldo informado até `today`. `null` quando não há dados suficientes para calcular
+ * (sem histórico, menos de um dia corrido ou capital aplicado zerado/negativo).
+ */
+export function annualizedReturn(movements: InvestmentMovement[], valuations: InvestmentValuation[], today: string): number | null {
+  const first = firstEventDate(movements, valuations);
+  if (!first) return null;
+  const days = daysBetween(first, today);
+  if (days <= 0) return null;
+  const { capital, gain } = positionAt(today, movements, valuations);
+  if (capital <= 0) return null;
+  const totalReturn = gain / capital;
+  if (totalReturn <= -1) return -1;
+  return (1 + totalReturn) ** (365 / days) - 1;
+}
+
 /** Fins de mês (AAAA-MM-DD) entre duas datas; o último ponto é a própria data final. */
 export function monthEnds(from: string, to: string) {
   const out: string[] = [];

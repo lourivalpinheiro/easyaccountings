@@ -3,7 +3,7 @@ import type { SearchParams } from "@/reports/types";
 import { asc, eq } from "drizzle-orm";
 import { Fragment } from "react";
 import { PageHeader } from "@/components/page-header";
-import { EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/report";
+import { accountName, EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/report";
 import { ReportFilters } from "@/components/report-filters";
 import { db } from "@/db";
 import { dreCategories } from "@/db/schema";
@@ -75,7 +75,7 @@ export async function IncomeStatementReport({ company, params }: { company: Comp
                   {s.accounts.map((a) => (
                     <tr key={a.id} className="border-b border-border/40">
                       <td className="tabular-nums text-muted-foreground">{a.classification}</td>
-                      <td className="pl-4">{a.name}</td>
+                      <td className={cn("pl-4", accountName)}>{a.name}</td>
                       <td className={num}>{signed(a.value)}</td>
                     </tr>
                   ))}

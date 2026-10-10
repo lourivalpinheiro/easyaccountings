@@ -4,7 +4,6 @@ import { Download, Pencil, Plus, Save, Trash2, Wand2, X } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { ConfirmAction } from "@/components/confirm-button";
 import { MoneyInput } from "@/components/money-input";
-import { BlockView } from "@/components/plan/block-view";
 import { InteractiveChart } from "@/components/interactive-chart";
 import { usePlan } from "@/components/plan/plan-context";
 import { Button } from "@/components/ui/button";
@@ -16,7 +15,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { formatDate, formatMoney } from "@/lib/accounting";
 import { FLOW_TYPE_LABELS, FLOW_TYPES, type FlowType } from "@/lib/cash-flow-types";
-import { blockModel } from "@/lib/plan/blocks";
 import { budgetRows, chartData, DEFAULT_CHART, goalStatus, MONTH_SHORT, PRIORITY_LABELS } from "@/lib/plan/calc";
 import type { Goal, Scenario } from "@/lib/plan/types";
 import { toastResult } from "@/lib/toast-result";
@@ -406,21 +404,6 @@ export function BudgetPanel({ plan }: { plan: WorkspacePlan }) {
         ))}
         {dirty && <span className="text-amber-600 dark:text-amber-400">Alterações não salvas</span>}
       </div>
-    </div>
-  );
-}
-
-// ---------- Controle ----------
-
-export function ControlPanel() {
-  const { dataset, inputs } = usePlan();
-  return (
-    <div className="grid gap-3">
-      <p className="text-sm text-muted-foreground">
-        Calculado automaticamente a partir do orçamento e das movimentações do fluxo de caixa. Insira o bloco &quot;Controle e
-        alertas&quot; no texto para levá-lo ao PDF.
-      </p>
-      <BlockView model={blockModel("controle", { type: "saida", limit: 8 }, dataset, inputs)} />
     </div>
   );
 }

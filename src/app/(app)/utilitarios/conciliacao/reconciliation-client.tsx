@@ -1,8 +1,8 @@
 "use client";
 
-import { Bot, Check, Plus, Trash2, Undo2, Upload } from "lucide-react";
+import { Bot, Check, Trash2, Undo2, Upload } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
-import { AccountPicker, type PickerAccount } from "@/components/account-picker";
+import { AccountPicker, AccountQuickCreate, type PickerAccount } from "@/components/account-picker";
 import { ConfirmAction } from "@/components/confirm-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate, formatDateTimeBrasilia, formatMoney } from "@/lib/accounting";
-import { saveAccount } from "../../arquivo/actions";
 import {
   deleteBankTransactions,
   deleteKnot,
@@ -111,52 +110,6 @@ const KNOT_COLUMNS: Column<Knot>[] = [
   },
   { id: "category", label: "Financeiro", value: (k) => k.cashCategory },
 ];
-
-function AccountQuickCreate({ onCreated }: { onCreated: (id: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const [classification, setClassification] = useState("");
-  const [name, setName] = useState("");
-  const [pending, startTransition] = useTransition();
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <Plus /> Criar conta
-      </Button>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Nova conta contábil</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-3">
-          <div className="grid gap-2">
-            <Label>Classificação</Label>
-            <Input value={classification} onChange={(e) => setClassification(e.target.value.replace(/[^\d.]/g, ""))} placeholder="1.1.1.03" className="tabular-nums" />
-          </div>
-          <div className="grid gap-2">
-            <Label>Descrição</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button
-            type="button"
-            disabled={pending || !classification || !name}
-            onClick={() =>
-              startTransition(async () => {
-                const result = await saveAccount({ classification, name, dreCategoryId: null });
-                if (toastResult(result, "Conta criada.") && result.ok) {
-                  onCreated((result.data as { id: string }).id);
-                  setOpen(false);
-                }
-              })
-            }
-          >
-            {pending ? "Criando..." : "Criar"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 export function ReconciliationClient({
   accounts,
@@ -542,7 +495,7 @@ export function ReconciliationClient({
                   <Label>Conta de contrapartida</Label>
                   <div className="flex gap-2">
                     <AccountPicker accounts={accounts.filter((a) => a.id !== draft.tx.bankAccountId)} value={counterAccountId} onChange={setCounterAccountId} className="flex-1" />
-                    <AccountQuickCreate onCreated={setCounterAccountId} />
+                    <AccountQuickCreate accounts={accounts} onCreated={setCounterAccountId} />
                   </div>
                   <Label>Cód. histórico (opcional)</Label>
                   <Input

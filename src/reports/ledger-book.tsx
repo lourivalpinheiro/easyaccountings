@@ -2,11 +2,13 @@ import type { Company } from "@/lib/company";
 import type { SearchParams } from "@/reports/types";
 import { Fragment } from "react";
 import { PageHeader } from "@/components/page-header";
-import { EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/report";
+import { accountName, EmptyReport, num, ReportSheet, ReportTable, Th } from "@/components/report";
+import { ClickableRow } from "@/components/report/interactive-rows";
 import { formatReportBalance, formatDate, formatReportMoney, isDescendantOrSelf } from "@/lib/accounting";
 import { getChart, getMovements, rollup } from "@/lib/data/ledger";
 import { getEntryLines, getLedgerLines, groupByDate } from "@/lib/data/reports";
 import { readPeriod } from "@/lib/period";
+import { cn } from "@/lib/utils";
 import { LedgerFilters } from "@/app/(app)/relatorios/livro-razao/account-multi-select";
 
 export async function LedgerBookReport({ company, params }: { company: Company; params: SearchParams }) {
@@ -103,18 +105,22 @@ export async function LedgerBookReport({ company, params }: { company: Company; 
                     {s.days.map((day) => (
                       <Fragment key={day.date}>
                         {day.rows.map((r, i) => (
-                          <tr key={`${r.entryId}-${i}`} className={i === 0 ? "border-t-2 border-primary/30" : "border-t border-border/40"}>
+                          <ClickableRow
+                            key={`${r.entryId}-${i}`}
+                            href={`/movimento/lancamentos?de=${r.date}&ate=${r.date}&q=${r.number}&abrir=${r.entryId}`}
+                            className={i === 0 ? "border-t-2 border-primary/30" : "border-t border-border/40"}
+                          >
                             <td>{i === 0 ? formatDate(r.date) : ""}</td>
                             <td className="text-right tabular-nums text-muted-foreground">{r.number}</td>
                             <td>
                               {r.historyCode ? `${r.historyCode} - ` : ""}
                               {r.description}
                             </td>
-                            <td className="text-muted-foreground">{counterpart(r.entryId, r.side)}</td>
+                            <td className={cn("text-muted-foreground", accountName)}>{counterpart(r.entryId, r.side)}</td>
                             <td className={num}>{r.side === "D" ? formatReportMoney(r.cents) : ""}</td>
                             <td className={num}>{r.side === "C" ? formatReportMoney(r.cents) : ""}</td>
                             <td className={num}>{formatReportBalance(r.balance)}</td>
-                          </tr>
+                          </ClickableRow>
                         ))}
                         <tr className="bg-muted/50 text-xs font-semibold">
                           <td colSpan={4} className="text-right">

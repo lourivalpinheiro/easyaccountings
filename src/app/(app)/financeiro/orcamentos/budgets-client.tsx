@@ -3,7 +3,7 @@
 import { BarChart3, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
-import { AccountPicker, type PickerAccount } from "@/components/account-picker";
+import { AccountPicker, AccountQuickCreate, type PickerAccount } from "@/components/account-picker";
 import { BulkDeleteBar } from "@/components/bulk-delete-bar";
 import { ConfirmAction } from "@/components/confirm-button";
 import { MoneyInput } from "@/components/money-input";
@@ -208,15 +208,20 @@ export function BudgetsClient({ budgets, accounts }: { budgets: Budget[]; accoun
                     </Button>
                   </div>
                 ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="justify-self-start"
-                  onClick={() => setDraft({ ...draft, items: [...draft.items, { accountId: null, cents: 0 }] })}
-                >
-                  <Plus /> Adicionar conta
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDraft({ ...draft, items: [...draft.items, { accountId: null, cents: 0 }] })}
+                  >
+                    <Plus /> Adicionar conta
+                  </Button>
+                  <AccountQuickCreate
+                    accounts={accounts}
+                    onCreated={(accountId) => setDraft((d) => d && { ...d, items: [...d.items, { accountId, cents: 0 }] })}
+                  />
+                </div>
               </div>
               <div className="flex flex-wrap justify-end gap-6 text-sm tabular-nums">
                 <span>

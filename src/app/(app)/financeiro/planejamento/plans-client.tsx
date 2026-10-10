@@ -46,8 +46,8 @@ export function PlansClient({ plans }: { plans: Plan[] }) {
           <CardContent className="grid justify-items-center gap-3 py-10 text-center">
             <Target className="size-10 text-primary" />
             <p className="max-w-md text-sm text-muted-foreground">
-              Nenhum plano ainda. Crie o plano do ano: ele já vem com um roteiro em cada seção (diagnóstico, planejamento,
-              orçamentos, controle e cenários), com gráficos e indicadores calculados a partir do fluxo de caixa.
+              Nenhum plano ainda. Crie o plano do ano: ele é dividido em etapas (diagnóstico, planejamento, orçamentos e
+              cenários), com gráficos e indicadores calculados a partir do fluxo de caixa.
             </p>
             <Button onClick={() => setDraft({ year: nextYear, title: "" })}>
               <Plus /> Criar plano de {nextYear}

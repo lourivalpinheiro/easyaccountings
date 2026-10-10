@@ -30,7 +30,7 @@ export default async function PlansPage() {
     <>
       <PageHeader
         title="Planejamento financeiro"
-        description="Um plano por ano, com diagnóstico, metas, orçamento, controle e cenários. Cada plano pode ser exportado em PDF e tem histórico de versões."
+        description="Um plano por ano, com diagnóstico, metas, orçamento e cenários. Cada plano pode ser exportado em PDF e tem histórico de versões."
       />
       <PlansClient plans={plans.map((p) => ({ ...p, updatedAt: p.updatedAt.toISOString() }))} />
     </>

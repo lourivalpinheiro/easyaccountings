@@ -8,7 +8,7 @@ import { PublicNav } from "./public-nav";
 
 // Links de acompanhamento não devem aparecer em buscadores.
 export const metadata: Metadata = {
-  title: { default: "Acompanhamento", template: "%s | Easy Accountings" },
+  title: { default: "Acompanhamento", template: "%s | Nedemy Finanças" },
   robots: { index: false, follow: false },
 };
 

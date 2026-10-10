@@ -8,7 +8,7 @@ import { companies, profiles, userCompanies } from "@/db/schema";
 import { isValidDocument, PERSON_LABELS } from "@/lib/accounting";
 import { run, UserError, type ActionResult } from "@/lib/action-utils";
 import { requireAdmin } from "@/lib/auth/session";
-import { seedCompany } from "@/lib/data/seed-company";
+import { cloneCompanyParams, seedCompany } from "@/lib/data/seed-company";
 import { newPublicToken } from "@/lib/public-company";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -43,6 +43,8 @@ export async function saveCompany(input: {
   legalName: string;
   displayName: string;
   document: string;
+  /** Empresa de onde copiar natureza das contas, DRE, plano de contas, históricos e zeramento (em vez do padrão). */
+  cloneFromCompanyId?: string;
 }): Promise<ActionResult> {
   await requireAdmin();
   return run(async () => {
@@ -52,7 +54,13 @@ export async function saveCompany(input: {
     } else {
       await db.transaction(async (tx) => {
         const [company] = await tx.insert(companies).values(data).returning({ id: companies.id });
-        await seedCompany(tx, company.id);
+        if (input.cloneFromCompanyId) {
+          const [source] = await tx.select({ id: companies.id }).from(companies).where(eq(companies.id, input.cloneFromCompanyId));
+          if (!source) throw new UserError("Empresa de origem não encontrada.");
+          await cloneCompanyParams(tx, source.id, company.id);
+        } else {
+          await seedCompany(tx, company.id);
+        }
       });
     }
     revalidatePath("/", "layout");
